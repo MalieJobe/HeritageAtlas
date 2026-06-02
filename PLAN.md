@@ -58,9 +58,9 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Relationships UI
 
-- [ ] **1.18 Add partnership** — link two persons as partners; set current/former status.
-- [ ] **1.19 Add parent-child** — link a child to parent(s).
-- [ ] **1.20 Relationship editing/removal** — toggle partnership status; remove links.
+- [x] **1.18 Add partnership** — link two persons as partners; set current/former status.
+- [x] **1.19 Add parent-child** — link a child to parent(s).
+- [x] **1.20 Relationship editing/removal** — toggle partnership status; remove links.
 
 ### Family graph
 
