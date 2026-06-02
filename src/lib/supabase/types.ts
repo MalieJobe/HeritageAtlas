@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      invitations: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["tree_role"]
+          tree_id: string
+          tree_name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["tree_role"]
+          tree_id: string
+          tree_name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["tree_role"]
+          tree_id?: string
+          tree_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parent_child_links: {
         Row: {
           child_id: string

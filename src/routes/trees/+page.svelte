@@ -14,6 +14,19 @@
 		<p class="text-sm text-stone-500">Family trees you own or have been invited to.</p>
 	</div>
 
+	{#if data.pendingInvites > 0}
+		<a
+			href={resolve('/invitations')}
+			class="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
+		>
+			<span>
+				You have {data.pendingInvites} pending
+				{data.pendingInvites === 1 ? 'invitation' : 'invitations'}.
+			</span>
+			<span class="font-medium">Review →</span>
+		</a>
+	{/if}
+
 	{#if data.trees.length > 0}
 		<ul class="flex flex-col gap-2">
 			{#each data.trees as tree (tree.id)}

@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 		.eq('user_id', user.id);
 
 	if (dbError) {
-		return { trees: [] };
+		return { trees: [], pendingInvites: 0 };
 	}
 
 	const trees = (data ?? [])
@@ -25,7 +25,14 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 		}))
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	return { trees };
+	// Surface any invitations waiting for this account's email.
+	const email = user.email?.toLowerCase() ?? '';
+	const { count: pendingInvites } = await supabase
+		.from('invitations')
+		.select('id', { count: 'exact', head: true })
+		.eq('email', email);
+
+	return { trees, pendingInvites: pendingInvites ?? 0 };
 };
 
 export const actions: Actions = {
