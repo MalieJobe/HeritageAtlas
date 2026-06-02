@@ -64,13 +64,18 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Family graph
 
-- [ ] **1.21 Graph data loader** — query persons + relationships for a tree into a graph structure.
-- [ ] **1.22 elkjs layout** — feed nodes/edges to elkjs, rank by generation, get positioned coords.
-- [ ] **1.23 Render nodes** — pan/zoom SVG (or HTML) nodes: photo/initials, surname-colored border.
-- [ ] **1.24 Render edges** — partnership + parent-child connectors styled distinctly.
-- [ ] **1.25 Node selection** — click a node → selected-person state; basic detail panel opens.
-- [ ] **1.26 Surname color map** — deterministic color per surname, shared util (reused by map dots).
-- [ ] **1.27 Graph perf pass** — virtualize/limit redraws for larger trees; smooth pan/zoom.
+- [x] **1.21 Graph data loader** — query persons + relationships for a tree into a graph structure.
+- [x] **1.22 elkjs layout** — feed nodes/edges to elkjs, rank by generation, get positioned coords.
+      Uses the union-node model (couples share a hidden junction) so layered layout puts partners
+      on the same rank and children below.
+- [x] **1.23 Render nodes** — pan/zoom SVG nodes matching the Figma design: cloud "blob" with
+      photo/initials + a name card coloured by sex (sage male / clay female / cream other).
+- [x] **1.24 Render edges** — parent-child + partnership connectors; former partnerships dashed.
+- [x] **1.25 Node selection** — click a node → selected state + detail panel (photo, sex, open profile).
+- [x] **1.26 Surname color map** — `src/lib/surnameColor.ts`, deterministic shared util. NOT applied
+      to graph nodes (would be confusing); reserved for the map dots in Phase 2.
+- [x] **1.27 Graph perf pass** — pan/zoom via a single root transform (no node re-render); level-of-
+      detail fallback to plain blocks when zoomed far out; batched photo signing in the loader.
 
 ## Phase 2 — Map basics
 

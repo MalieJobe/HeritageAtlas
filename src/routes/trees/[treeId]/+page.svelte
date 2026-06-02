@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import FamilyGraph from '$lib/components/FamilyGraph.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let personCount = $derived(data.graph.persons.length);
 </script>
 
 <svelte:head><title>{data.tree.name} · HeritageAtlas</title></svelte:head>
@@ -13,19 +15,7 @@
 			<a href={resolve('/trees')} class="text-sm text-ink/60 hover:text-ink"> ← Your trees </a>
 			<h1 class="text-2xl font-semibold text-ink">{data.tree.name}</h1>
 		</div>
-		<a
-			href={resolve('/trees/[treeId]/settings', { treeId: data.tree.id })}
-			class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
-		>
-			Settings
-		</a>
-	</div>
-
-	<section class="flex flex-col gap-3">
-		<div class="flex items-center justify-between">
-			<h2 class="text-sm font-medium text-ink/80">
-				People <span class="text-ink/45">({data.persons.length})</span>
-			</h2>
+		<div class="flex items-center gap-2">
 			{#if data.canEdit}
 				<a
 					href={resolve('/trees/[treeId]/persons/new', { treeId: data.tree.id })}
@@ -34,24 +24,22 @@
 					Add person
 				</a>
 			{/if}
+			<a
+				href={resolve('/trees/[treeId]/settings', { treeId: data.tree.id })}
+				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
+			>
+				Settings
+			</a>
 		</div>
+	</div>
 
-		{#if data.persons.length > 0}
-			<ul class="flex flex-col divide-y divide-sage/40 rounded-lg border border-sage bg-white">
-				{#each data.persons as person (person.id)}
-					<li>
-						<a
-							href={resolve('/trees/[treeId]/persons/[personId]', {
-								treeId: data.tree.id,
-								personId: person.id
-							})}
-							class="block px-4 py-3 text-ink hover:bg-cream"
-						>
-							{person.name}
-						</a>
-					</li>
-				{/each}
-			</ul>
+	<section class="flex flex-col gap-3">
+		<h2 class="text-sm font-medium text-ink/80">
+			People <span class="text-ink/45">({personCount})</span>
+		</h2>
+
+		{#if personCount > 0}
+			<FamilyGraph graph={data.graph} treeId={data.tree.id} />
 		{:else}
 			<p class="rounded-lg border border-dashed border-sage px-4 py-8 text-center text-ink/55">
 				No people yet.{#if data.canEdit}
@@ -59,8 +47,4 @@
 			</p>
 		{/if}
 	</section>
-
-	<p class="rounded-lg border border-dashed border-sage px-4 py-6 text-center text-sm text-ink/45">
-		The interactive family graph will replace this list in a later task.
-	</p>
 </div>
