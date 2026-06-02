@@ -1,6 +1,12 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { personName } from '$lib/person';
-import type { PageServerLoad } from './$types';
+import { requireEditableTree } from '$lib/server/treeAccess';
+import type { Actions, PageServerLoad } from './$types';
+
+/** Canonical ordering for the symmetric partnership pair (partner_a < partner_b). */
+function orderedPair(a: string, b: string): [string, string] {
+	return a < b ? [a, b] : [b, a];
+}
 
 export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
 	if (!user) redirect(303, '/auth/login');
@@ -44,7 +50,14 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		photoUrl = signed?.signedUrl ?? null;
 	}
 
-	// Relationships touching this person.
+	// All people in the tree (for relationship pickers + name lookups).
+	const { data: everyone } = await supabase
+		.from('persons')
+		.select('id, given_names, surname, nickname')
+		.eq('tree_id', treeId);
+	const all = everyone ?? [];
+	const nameById = new Map(all.map((p) => [p.id, personName(p)]));
+
 	const { data: partnerRows } = await supabase
 		.from('partnerships')
 		.select('id, partner_a, partner_b, status')
@@ -60,34 +73,161 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 	const partnerRowsSafe = partnerRows ?? [];
 	const linkRowsSafe = linkRows ?? [];
 
-	// Names for every related person, fetched once.
-	const relatedIds = new Set<string>();
-	for (const row of partnerRowsSafe) {
-		relatedIds.add(row.partner_a === personId ? row.partner_b : row.partner_a);
-	}
-	for (const row of linkRowsSafe) {
-		relatedIds.add(row.parent_id === personId ? row.child_id : row.parent_id);
-	}
-
-	const { data: relatedPersons } = relatedIds.size
-		? await supabase
-				.from('persons')
-				.select('id, given_names, surname, nickname')
-				.in('id', [...relatedIds])
-		: { data: [] };
-	const nameById = new Map((relatedPersons ?? []).map((p) => [p.id, personName(p)]));
-	const label = (id: string) => ({ id, name: nameById.get(id) ?? 'Unnamed person' });
-
 	const partners = partnerRowsSafe.map((row) => {
 		const otherId = row.partner_a === personId ? row.partner_b : row.partner_a;
-		return { ...label(otherId), status: row.status };
+		return {
+			partnershipId: row.id,
+			id: otherId,
+			name: nameById.get(otherId) ?? 'Unnamed person',
+			status: row.status
+		};
 	});
 	const parents = linkRowsSafe
 		.filter((r) => r.child_id === personId)
-		.map((r) => label(r.parent_id));
+		.map((r) => ({
+			linkId: r.id,
+			id: r.parent_id,
+			name: nameById.get(r.parent_id) ?? 'Unnamed person'
+		}));
 	const children = linkRowsSafe
 		.filter((r) => r.parent_id === personId)
-		.map((r) => label(r.child_id));
+		.map((r) => ({
+			linkId: r.id,
+			id: r.child_id,
+			name: nameById.get(r.child_id) ?? 'Unnamed person'
+		}));
 
-	return { tree, person, photoUrl, canEdit, partners, parents, children };
+	// People not yet connected to this person, offered in the pickers.
+	const connectedIds = new Set<string>([
+		personId,
+		...partners.map((p) => p.id),
+		...parents.map((p) => p.id),
+		...children.map((c) => c.id)
+	]);
+	const candidates = all
+		.filter((p) => !connectedIds.has(p.id))
+		.map((p) => ({ id: p.id, name: personName(p) }))
+		.sort((a, b) => a.name.localeCompare(b.name));
+
+	return { tree, person, photoUrl, canEdit, partners, parents, children, candidates };
+};
+
+export const actions: Actions = {
+	addPartner: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const partnerId = String(formData.get('personId') ?? '');
+		const status = String(formData.get('status') ?? 'current');
+		if (!partnerId || partnerId === params.personId) {
+			return fail(400, { relError: 'Choose a different person to link as a partner.' });
+		}
+
+		const [partner_a, partner_b] = orderedPair(params.personId, partnerId);
+		const { error: dbError } = await supabase.from('partnerships').insert({
+			tree_id: params.treeId,
+			partner_a,
+			partner_b,
+			status: status === 'former' ? 'former' : 'current'
+		});
+		if (dbError) {
+			return fail(400, { relError: dbError.message });
+		}
+		return { ok: true };
+	},
+
+	addParent: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const parentId = String(formData.get('personId') ?? '');
+		if (!parentId || parentId === params.personId) {
+			return fail(400, { relError: 'Choose a different person to link as a parent.' });
+		}
+
+		const { error: dbError } = await supabase
+			.from('parent_child_links')
+			.insert({ tree_id: params.treeId, parent_id: parentId, child_id: params.personId });
+		if (dbError) {
+			return fail(400, {
+				relError: dbError.code === '23505' ? 'That parent is already linked.' : dbError.message
+			});
+		}
+		return { ok: true };
+	},
+
+	addChild: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const childId = String(formData.get('personId') ?? '');
+		if (!childId || childId === params.personId) {
+			return fail(400, { relError: 'Choose a different person to link as a child.' });
+		}
+
+		const { error: dbError } = await supabase
+			.from('parent_child_links')
+			.insert({ tree_id: params.treeId, parent_id: params.personId, child_id: childId });
+		if (dbError) {
+			return fail(400, {
+				relError: dbError.code === '23505' ? 'That child is already linked.' : dbError.message
+			});
+		}
+		return { ok: true };
+	},
+
+	setPartnerStatus: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const partnershipId = String(formData.get('partnershipId') ?? '');
+		const status = String(formData.get('status') ?? '') === 'former' ? 'former' : 'current';
+		const { error: dbError } = await supabase
+			.from('partnerships')
+			.update({ status })
+			.eq('id', partnershipId)
+			.eq('tree_id', params.treeId);
+		if (dbError) {
+			return fail(400, { relError: dbError.message });
+		}
+		return { ok: true };
+	},
+
+	removePartnership: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const partnershipId = String(formData.get('partnershipId') ?? '');
+		const { error: dbError } = await supabase
+			.from('partnerships')
+			.delete()
+			.eq('id', partnershipId)
+			.eq('tree_id', params.treeId);
+		if (dbError) {
+			return fail(400, { relError: dbError.message });
+		}
+		return { ok: true };
+	},
+
+	removeLink: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const linkId = String(formData.get('linkId') ?? '');
+		const { error: dbError } = await supabase
+			.from('parent_child_links')
+			.delete()
+			.eq('id', linkId)
+			.eq('tree_id', params.treeId);
+		if (dbError) {
+			return fail(400, { relError: dbError.message });
+		}
+		return { ok: true };
+	}
 };
