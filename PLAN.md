@@ -36,10 +36,11 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - [x] **1.6 `tree_members` table** — tree_id, user_id, role (owner/editor/viewer) + RLS for shared access.
 - [x] **1.7 `persons` table** — names (given, surname, birth/maiden, nickname), sex/gender, notes,
       profile_photo_path, tree_id + RLS via tree membership.
-- [x] **1.8 `relationships`** — split into `partnerships` (type, status, began/ended fuzzy dates) and
-      `parent_child_links` (typed: bio/adoptive/step/foster). Edges reference persons + RLS.
+- [x] **1.8 `relationships`** — split into `partnerships` (current/former status only) and
+      `parent_child_links` (plain parent → child). Edges reference persons + RLS. (Simplified in
+      migration 0009 — no dates/type; relationships only show in the tree, never on the map.)
 - [x] **1.9 Fuzzy-date storage convention** — decide & document columns (value + qualifier + precision);
-      add a reusable shape used across persons/relationships/events.
+      reusable shape for **event** dates (Phase 2). The shape/formatter live in `src/lib/fuzzyDate.ts`.
 - [x] **1.10 Generate TS types** — Supabase type generation wired to a script; commit generated types.
 
 ### Tree CRUD
@@ -57,9 +58,9 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Relationships UI
 
-- [ ] **1.18 Add partnership** — link two persons as partners (type/status/dates).
-- [ ] **1.19 Add parent-child** — link a child to parent(s) with relationship type.
-- [ ] **1.20 Relationship editing/removal** — edit type/dates, remove links.
+- [ ] **1.18 Add partnership** — link two persons as partners; set current/former status.
+- [ ] **1.19 Add parent-child** — link a child to parent(s).
+- [ ] **1.20 Relationship editing/removal** — toggle partnership status; remove links.
 
 ### Family graph
 
@@ -144,3 +145,5 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - [ ] **Re-enable "Confirm email"** in Supabase (Authentication → Providers → Email).
       It was turned off during development for password sign-up without SMTP; turn it
       back on (and configure SMTP) before any real users sign up.
+- [ ] **Enable leaked-password protection** (Authentication → Policies) so Supabase checks
+      passwords against HaveIBeenPwned. Flagged by the security advisor.

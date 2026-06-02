@@ -26,9 +26,11 @@ longer exist.
 ### Data model
 
 - **Custom Postgres schema** (tuned for map/timeline), with **GEDCOM import + export** for interop.
-- **Full real-world relationship model:** partnerships (married or unmarried), multiple partners
-  over a lifetime, same-sex couples, divorce/separation with dates, and typed parent-child links
-  (biological / adoptive / step / foster).
+- **Deliberately simple relationship model** (relationships appear only in the tree, never on the
+  map, so they carry no historical dates): partnerships between two people with a **current / former**
+  status (multiple partners over a lifetime and same-sex couples are fine — just more partnership
+  rows), and plain **parent → child** links. No partnership type, no relationship dates, no
+  parent-child type. (Earlier drafts modeled type/status/dates; simplified per the owner's call.)
 - **Fuzzy dates with qualifiers:** value + qualifier (exact / about / before / after / between /
   estimated) and partial precision (year-only, month-year, full). Timeline resolves a best-guess
   point but tracks uncertainty.
@@ -36,8 +38,9 @@ longer exist.
     sharing a prefix — `<prefix>_date` (best-guess / lower bound), `<prefix>_date_end` (upper
     bound, only for the `between` qualifier), `<prefix>_qualifier` (enum `date_qualifier`), and
     `<prefix>_precision` (enum `date_precision`: day / month / year). All nullable; a fully-null
-    group means "no date". Reused across tables (`partnerships.began_*` / `.ended_*`, and
-    `events.*` in Phase 2). The TS shape and formatter live in [src/lib/fuzzyDate.ts](src/lib/fuzzyDate.ts).
+    group means "no date". Used by **event** dates (`events.*` in Phase 2) — the dates that drive
+    the map timeline. (Relationships carry no dates.) The TS shape and formatter live in
+    [src/lib/fuzzyDate.ts](src/lib/fuzzyDate.ts).
 - **Person record:** given name(s), surname, birth/maiden surname, nickname; sex/gender; free-text
   notes; **one profile photo** (used on dots & tree nodes); and a flexible list of **life events**.
 - **Events:** birth, death, marriage, residence/moved, occupation, custom — each with a fuzzy date,

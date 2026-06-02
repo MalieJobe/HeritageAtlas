@@ -3,8 +3,9 @@
  *
  * Genealogical dates are often partial or approximate ("abt. 1880", "before
  * March 1945", "between 1920 and 1922"). We store each fuzzy date as a group of
- * four flat columns sharing a prefix, so the same shape is reused across tables
- * (partnerships.began_*, .ended_*; events.* in Phase 2):
+ * four flat columns sharing a prefix. This is the convention for event dates
+ * (Phase 2) — the dates that drive the map timeline. (Relationships deliberately
+ * carry no dates; they only appear in the tree, never on the map.)
  *
  *   <prefix>_date       date  — best-guess / lower-bound calendar date
  *   <prefix>_date_end   date  — upper bound, only set when qualifier = 'between'

@@ -59,7 +59,6 @@ export type Database = {
           id: string
           parent_id: string
           tree_id: string
-          type: Database["public"]["Enums"]["parent_child_type"]
           updated_at: string
         }
         Insert: {
@@ -68,7 +67,6 @@ export type Database = {
           id?: string
           parent_id: string
           tree_id: string
-          type?: Database["public"]["Enums"]["parent_child_type"]
           updated_at?: string
         }
         Update: {
@@ -77,7 +75,6 @@ export type Database = {
           id?: string
           parent_id?: string
           tree_id?: string
-          type?: Database["public"]["Enums"]["parent_child_type"]
           updated_at?: string
         }
         Relationships: [
@@ -106,57 +103,30 @@ export type Database = {
       }
       partnerships: {
         Row: {
-          began_date: string | null
-          began_date_end: string | null
-          began_precision: Database["public"]["Enums"]["date_precision"] | null
-          began_qualifier: Database["public"]["Enums"]["date_qualifier"] | null
           created_at: string
-          ended_date: string | null
-          ended_date_end: string | null
-          ended_precision: Database["public"]["Enums"]["date_precision"] | null
-          ended_qualifier: Database["public"]["Enums"]["date_qualifier"] | null
           id: string
           partner_a: string
           partner_b: string
           status: Database["public"]["Enums"]["partnership_status"]
           tree_id: string
-          type: Database["public"]["Enums"]["partnership_type"]
           updated_at: string
         }
         Insert: {
-          began_date?: string | null
-          began_date_end?: string | null
-          began_precision?: Database["public"]["Enums"]["date_precision"] | null
-          began_qualifier?: Database["public"]["Enums"]["date_qualifier"] | null
           created_at?: string
-          ended_date?: string | null
-          ended_date_end?: string | null
-          ended_precision?: Database["public"]["Enums"]["date_precision"] | null
-          ended_qualifier?: Database["public"]["Enums"]["date_qualifier"] | null
           id?: string
           partner_a: string
           partner_b: string
           status?: Database["public"]["Enums"]["partnership_status"]
           tree_id: string
-          type?: Database["public"]["Enums"]["partnership_type"]
           updated_at?: string
         }
         Update: {
-          began_date?: string | null
-          began_date_end?: string | null
-          began_precision?: Database["public"]["Enums"]["date_precision"] | null
-          began_qualifier?: Database["public"]["Enums"]["date_qualifier"] | null
           created_at?: string
-          ended_date?: string | null
-          ended_date_end?: string | null
-          ended_precision?: Database["public"]["Enums"]["date_precision"] | null
-          ended_qualifier?: Database["public"]["Enums"]["date_qualifier"] | null
           id?: string
           partner_a?: string
           partner_b?: string
           status?: Database["public"]["Enums"]["partnership_status"]
           tree_id?: string
-          type?: Database["public"]["Enums"]["partnership_type"]
           updated_at?: string
         }
         Relationships: [
@@ -326,14 +296,7 @@ export type Database = {
         | "after"
         | "between"
         | "estimated"
-      parent_child_type: "biological" | "adoptive" | "step" | "foster"
-      partnership_status:
-        | "active"
-        | "separated"
-        | "divorced"
-        | "widowed"
-        | "ended"
-      partnership_type: "marriage" | "civil_union" | "unmarried"
+      partnership_status: "current" | "former"
       tree_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
@@ -471,15 +434,7 @@ export const Constants = {
         "between",
         "estimated",
       ],
-      parent_child_type: ["biological", "adoptive", "step", "foster"],
-      partnership_status: [
-        "active",
-        "separated",
-        "divorced",
-        "widowed",
-        "ended",
-      ],
-      partnership_type: ["marriage", "civil_union", "unmarried"],
+      partnership_status: ["current", "former"],
       tree_role: ["owner", "editor", "viewer"],
     },
   },
