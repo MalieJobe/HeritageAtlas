@@ -32,12 +32,12 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Schema (one migration per small group; all with RLS)
 
-- [ ] **1.5 `trees` table** — id, name, owner_id, timestamps + RLS (owner full access).
-- [ ] **1.6 `tree_members` table** — tree_id, user_id, role (owner/editor/viewer) + RLS for shared access.
-- [ ] **1.7 `persons` table** — names (given, surname, birth/maiden, nickname), sex/gender, notes,
+- [x] **1.5 `trees` table** — id, name, owner_id, timestamps + RLS (owner full access).
+- [x] **1.6 `tree_members` table** — tree_id, user_id, role (owner/editor/viewer) + RLS for shared access.
+- [x] **1.7 `persons` table** — names (given, surname, birth/maiden, nickname), sex/gender, notes,
       profile_photo_path, tree_id + RLS via tree membership.
-- [ ] **1.8 `relationships` table** — partnership links (type, status, start/end fuzzy dates) +
-      parent-child links (typed: bio/adoptive/step/foster). Model as edges referencing persons + RLS.
+- [x] **1.8 `relationships`** — split into `partnerships` (type, status, began/ended fuzzy dates) and
+      `parent_child_links` (typed: bio/adoptive/step/foster). Edges reference persons + RLS.
 - [ ] **1.9 Fuzzy-date storage convention** — decide & document columns (value + qualifier + precision);
       add a reusable shape used across persons/relationships/events.
 - [ ] **1.10 Generate TS types** — Supabase type generation wired to a script; commit generated types.
