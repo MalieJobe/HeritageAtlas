@@ -25,10 +25,10 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Auth
 
-- [ ] **1.1 Supabase Auth setup** — enable email auth; document required env/keys.
-- [ ] **1.2 Sign up / sign in / sign out** — auth pages + session handling (SSR-safe).
-- [ ] **1.3 Route protection** — redirect unauthenticated users; load session in root layout.
-- [ ] **1.4 Profile bootstrap** — `profiles` table + trigger/row on first login; minimal account page.
+- [x] **1.1 Supabase Auth setup** — enable email auth; document required env/keys.
+- [x] **1.2 Sign up / sign in / sign out** — auth pages + session handling (SSR-safe).
+- [x] **1.3 Route protection** — redirect unauthenticated users; load session in root layout.
+- [x] **1.4 Profile bootstrap** — `profiles` table + trigger/row on first login; minimal account page.
 
 ### Schema (one migration per small group; all with RLS)
 
