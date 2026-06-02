@@ -17,9 +17,9 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - [x] **0.4 Repo hygiene** — `.gitignore` (node_modules, .env, .svelte-kit), `.env.example`, `.nvmrc`.
 - [x] **0.5 Supabase client** — install `@supabase/supabase-js` + `@supabase/ssr`; create a typed
       browser + server client helper reading env vars. (No tables yet.)
-- [ ] **0.6 App shell** — root layout: top bar (app name, auth slot), main content area, base theme.
-- [ ] **0.7 README** — short README: what it is, stack, how to run locally, env vars needed.
-- [ ] **0.8 CI (optional)** — GitHub Action running `check` + `lint` on push.
+- [x] **0.6 App shell** — root layout: top bar (app name, auth slot), main content area, base theme.
+- [x] **0.7 README** — short README: what it is, stack, how to run locally, env vars needed.
+- [x] **0.8 CI (optional)** — GitHub Action running `check` + `lint` on push.
 
 ## Phase 1 — Foundation: auth, data model, family graph
 
