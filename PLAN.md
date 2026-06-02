@@ -15,7 +15,7 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - [x] **0.2 Tailwind** — install & configure Tailwind, verify a styled page renders.
 - [x] **0.3 Tooling** — ESLint + Prettier + `svelte-check`; add `lint`/`format`/`check` npm scripts.
 - [x] **0.4 Repo hygiene** — `.gitignore` (node_modules, .env, .svelte-kit), `.env.example`, `.nvmrc`.
-- [ ] **0.5 Supabase client** — install `@supabase/supabase-js` + `@supabase/ssr`; create a typed
+- [x] **0.5 Supabase client** — install `@supabase/supabase-js` + `@supabase/ssr`; create a typed
       browser + server client helper reading env vars. (No tables yet.)
 - [ ] **0.6 App shell** — root layout: top bar (app name, auth slot), main content area, base theme.
 - [ ] **0.7 README** — short README: what it is, stack, how to run locally, env vars needed.
