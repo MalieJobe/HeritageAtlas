@@ -1,5 +1,13 @@
 import { createSupabaseServerClient } from '$lib/supabase/server';
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
+
+/** Routes that do NOT require an authenticated session. */
+const PUBLIC_ROUTES = ['/', '/auth'];
+
+function isPublic(pathname: string): boolean {
+	return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
 
 /**
  * Attaches a request-scoped Supabase client to locals, resolves the (validated)
@@ -41,4 +49,23 @@ const supabase: Handle = async ({ event, resolve }) => {
 	});
 };
 
-export const handle: Handle = supabase;
+/** Redirects unauthenticated users away from protected routes, and signed-in users away from /auth. */
+const authGuard: Handle = async ({ event, resolve }) => {
+	const { session } = event.locals;
+	const { pathname } = event.url;
+
+	if (!session && !isPublic(pathname)) {
+		const redirectTo = encodeURIComponent(pathname + event.url.search);
+		redirect(303, `/auth/login?redirectTo=${redirectTo}`);
+	}
+
+	// Signed-in users have no reason to see the login/signup forms. (Note: /auth/logout
+	// is intentionally excluded — a signed-in user must be able to reach it.)
+	if (session && (pathname === '/auth/login' || pathname === '/auth/signup')) {
+		redirect(303, '/');
+	}
+
+	return resolve(event);
+};
+
+export const handle: Handle = sequence(supabase, authGuard);
