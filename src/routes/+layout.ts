@@ -20,12 +20,15 @@ export const load: LayoutLoad = async ({ data, depends, fetch }) => {
 				cookies: { getAll: () => data.cookies }
 			});
 
-	const {
-		data: { session }
-	} = await supabase.auth.getSession();
+	// Validate with getUser() before getSession(): on the server this sets the
+	// library's suppression flag before getSession() wraps session.user, avoiding
+	// the "insecure session.user" warning. Identity comes from getUser().
 	const {
 		data: { user }
 	} = await supabase.auth.getUser();
+	const {
+		data: { session }
+	} = await supabase.auth.getSession();
 
 	return { supabase, session, user };
 };

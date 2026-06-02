@@ -16,24 +16,22 @@ function isPublic(pathname: string): boolean {
 const supabase: Handle = async ({ event, resolve }) => {
 	event.locals.supabase = createSupabaseServerClient(event.cookies);
 
-	// getSession() alone trusts the cookie without verifying it; getUser()
-	// re-validates the JWT against the auth server, so we gate the session on it.
+	// getSession() alone trusts the cookie without verifying it. Call getUser()
+	// FIRST so the JWT is validated against the auth server and the library's
+	// "insecure session.user" warning is suppressed before getSession() wraps it;
+	// then read the session for its tokens. Identity always comes from getUser().
 	event.locals.safeGetSession = async () => {
-		const {
-			data: { session }
-		} = await event.locals.supabase.auth.getSession();
-		if (!session) {
-			return { session: null, user: null };
-		}
-
 		const {
 			data: { user },
 			error
 		} = await event.locals.supabase.auth.getUser();
-		if (error) {
+		if (error || !user) {
 			return { session: null, user: null };
 		}
 
+		const {
+			data: { session }
+		} = await event.locals.supabase.auth.getSession();
 		return { session, user };
 	};
 
