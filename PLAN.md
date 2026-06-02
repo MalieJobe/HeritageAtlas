@@ -38,15 +38,15 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
       profile_photo_path, tree_id + RLS via tree membership.
 - [x] **1.8 `relationships`** — split into `partnerships` (type, status, began/ended fuzzy dates) and
       `parent_child_links` (typed: bio/adoptive/step/foster). Edges reference persons + RLS.
-- [ ] **1.9 Fuzzy-date storage convention** — decide & document columns (value + qualifier + precision);
+- [x] **1.9 Fuzzy-date storage convention** — decide & document columns (value + qualifier + precision);
       add a reusable shape used across persons/relationships/events.
-- [ ] **1.10 Generate TS types** — Supabase type generation wired to a script; commit generated types.
+- [x] **1.10 Generate TS types** — Supabase type generation wired to a script; commit generated types.
 
 ### Tree CRUD
 
-- [ ] **1.11 Tree list page** — list trees the user owns/belongs to; create-tree form.
-- [ ] **1.12 Tree settings** — rename/delete tree (owner only); show members.
-- [ ] **1.13 Invite members** — invite by email, assign role; accept flow.
+- [x] **1.11 Tree list page** — list trees the user owns/belongs to; create-tree form.
+- [x] **1.12 Tree settings** — rename/delete tree (owner only); show members.
+- [x] **1.13 Invite members** — invite by email, assign role; accept flow.
 
 ### Persons CRUD
 
