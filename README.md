@@ -1,42 +1,47 @@
-# sv
+# HeritageAtlas
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A hosted web app for recording family ancestry — people, relationships, dates, and photos — and
+visualizing it as a **synced split view**: an interactive family graph beside a **historical map
+with a timeline slider** that shows where the family lived across the years, including borders of
+countries that no longer exist.
 
-## Creating a project
+See [DESIGN.md](DESIGN.md) for the full design spec and [PLAN.md](PLAN.md) for the task-by-task
+build plan.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Stack
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- **SvelteKit** (Svelte 5) + **TypeScript**
+- **Tailwind CSS v4**
+- **Supabase** — Postgres, auth, file storage, row-level security
+- **MapLibre GL** — maps (added in Phase 2)
+- **pnpm** package manager · Node version pinned in [.nvmrc](.nvmrc)
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.15.3 create --template minimal --types ts --no-install _scaffold
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Getting started
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm install
+cp .env.example .env   # then fill in your Supabase values
+pnpm dev
 ```
 
-## Building
+### Environment variables
 
-To create a production version of your app:
+Copy [.env.example](.env.example) to `.env` and set:
 
-```sh
-npm run build
-```
+| Variable                   | Where to find it                            |
+| -------------------------- | ------------------------------------------- |
+| `PUBLIC_SUPABASE_URL`      | Supabase dashboard → Project Settings → API |
+| `PUBLIC_SUPABASE_ANON_KEY` | Supabase dashboard → Project Settings → API |
 
-You can preview the production build with `npm run preview`.
+Both are public (browser-safe) keys; `.env` itself is git-ignored.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Scripts
+
+| Command        | Description                  |
+| -------------- | ---------------------------- |
+| `pnpm dev`     | Start the dev server         |
+| `pnpm build`   | Production build             |
+| `pnpm preview` | Preview the production build |
+| `pnpm check`   | Type-check (`svelte-check`)  |
+| `pnpm lint`    | Prettier check + ESLint      |
+| `pnpm format`  | Auto-format with Prettier    |
