@@ -1,13 +1,35 @@
-// Placeholder database types.
+// Database types.
 //
-// Replaced by Supabase-generated types in task 1.10 (`supabase gen types typescript`).
-// Until tables exist, this is an empty-but-valid schema so the typed clients compile.
+// Hand-maintained for now; task 1.10 wires up `supabase gen types typescript` to
+// regenerate this file from the live schema. Keep in sync with supabase/migrations/.
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
 	public: {
-		Tables: Record<string, never>;
+		Tables: {
+			profiles: {
+				Row: {
+					id: string;
+					display_name: string | null;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id: string;
+					display_name?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					display_name?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Relationships: [];
+			};
+		};
 		Views: Record<string, never>;
 		Functions: Record<string, never>;
 		Enums: Record<string, never>;
