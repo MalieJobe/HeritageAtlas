@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
-	import { personName } from '$lib/person';
+	import { personInitials, personName } from '$lib/person';
+	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -24,6 +25,46 @@
 		</a>
 		<h1 class="text-2xl font-semibold text-ink">Edit person</h1>
 	</div>
+
+	<!-- Profile photo -->
+	<section class="flex items-center gap-4">
+		<PersonAvatar photoUrl={data.photoUrl} initials={personInitials(data.person)} size={80} />
+		<div class="flex flex-col gap-2">
+			<form
+				method="POST"
+				action="?/uploadPhoto"
+				enctype="multipart/form-data"
+				use:enhance
+				class="flex flex-wrap items-center gap-2"
+			>
+				<input
+					name="photo"
+					type="file"
+					accept="image/*"
+					required
+					class="text-sm text-ink/70 file:mr-2 file:rounded-md file:border file:border-sage file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink hover:file:bg-cream"
+				/>
+				<button
+					type="submit"
+					class="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80"
+				>
+					Upload
+				</button>
+			</form>
+			{#if data.photoUrl}
+				<form method="POST" action="?/removePhoto" use:enhance>
+					<button type="submit" class="text-sm text-ink/50 hover:text-red-600">
+						Remove photo
+					</button>
+				</form>
+			{/if}
+			{#if form?.photoError}
+				<p class="text-sm text-red-600">{form.photoError}</p>
+			{:else if form?.photoUpdated}
+				<p class="text-sm text-green-700">Photo updated.</p>
+			{/if}
+		</div>
+	</section>
 
 	<form method="POST" action="?/save" use:enhance class="flex flex-col gap-4">
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
