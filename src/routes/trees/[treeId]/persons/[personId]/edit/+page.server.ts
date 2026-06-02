@@ -70,8 +70,7 @@ export const actions: Actions = {
 			return fail(400, { error: dbError.message });
 		}
 
-		// Detail route arrives in task 1.17; until then land back on the tree.
-		redirect(303, `/trees/${params.treeId}`);
+		redirect(303, `/trees/${params.treeId}/persons/${params.personId}`);
 	},
 
 	uploadPhoto: async ({ params, request, locals: { supabase, user } }) => {

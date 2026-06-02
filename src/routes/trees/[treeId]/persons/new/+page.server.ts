@@ -32,15 +32,16 @@ export const actions: Actions = {
 			return fail(400, { ...values, error: 'Enter at least a given name, surname, or nickname.' });
 		}
 
-		const { error: dbError } = await supabase
+		const { data, error: dbError } = await supabase
 			.from('persons')
-			.insert({ tree_id: params.treeId, ...values });
+			.insert({ tree_id: params.treeId, ...values })
+			.select('id')
+			.single();
 
 		if (dbError) {
 			return fail(400, { ...values, error: dbError.message });
 		}
 
-		// Detail route arrives in task 1.17; until then land back on the tree.
-		redirect(303, `/trees/${params.treeId}`);
+		redirect(303, `/trees/${params.treeId}/persons/${data.id}`);
 	}
 };

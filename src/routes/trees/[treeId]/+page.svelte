@@ -41,7 +41,7 @@
 				{#each data.persons as person (person.id)}
 					<li>
 						<a
-							href={resolve('/trees/[treeId]/persons/[personId]/edit', {
+							href={resolve('/trees/[treeId]/persons/[personId]', {
 								treeId: data.tree.id,
 								personId: person.id
 							})}
