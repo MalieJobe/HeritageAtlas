@@ -21,7 +21,36 @@
 		</a>
 	</div>
 
-	<p class="rounded-lg border border-dashed border-sage px-4 py-10 text-center text-ink/55">
-		The family graph for this tree will appear here (built in a later task).
+	<section class="flex flex-col gap-3">
+		<div class="flex items-center justify-between">
+			<h2 class="text-sm font-medium text-ink/80">
+				People <span class="text-ink/45">({data.persons.length})</span>
+			</h2>
+			{#if data.canEdit}
+				<a
+					href={resolve('/trees/[treeId]/persons/new', { treeId: data.tree.id })}
+					class="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80"
+				>
+					Add person
+				</a>
+			{/if}
+		</div>
+
+		{#if data.persons.length > 0}
+			<ul class="flex flex-col divide-y divide-sage/40 rounded-lg border border-sage bg-white">
+				{#each data.persons as person (person.id)}
+					<li class="px-4 py-3 text-ink">{person.name}</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="rounded-lg border border-dashed border-sage px-4 py-8 text-center text-ink/55">
+				No people yet.{#if data.canEdit}
+					Add the first person to start building this tree.{/if}
+			</p>
+		{/if}
+	</section>
+
+	<p class="rounded-lg border border-dashed border-sage px-4 py-6 text-center text-sm text-ink/45">
+		The interactive family graph will replace this list in a later task.
 	</p>
 </div>

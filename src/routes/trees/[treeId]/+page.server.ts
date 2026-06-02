@@ -1,4 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
+import { personName } from '$lib/person';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
@@ -16,5 +17,22 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		error(404, 'Tree not found');
 	}
 
-	return { tree, isOwner: tree.owner_id === user.id };
+	const { data: membership } = await supabase
+		.from('tree_members')
+		.select('role')
+		.eq('tree_id', params.treeId)
+		.eq('user_id', user.id)
+		.maybeSingle();
+	const canEdit = membership?.role === 'owner' || membership?.role === 'editor';
+
+	const { data: personRows } = await supabase
+		.from('persons')
+		.select('id, given_names, surname, nickname')
+		.eq('tree_id', params.treeId);
+
+	const persons = (personRows ?? [])
+		.map((p) => ({ id: p.id, name: personName(p) }))
+		.sort((a, b) => a.name.localeCompare(b.name));
+
+	return { tree, isOwner: tree.owner_id === user.id, canEdit, persons };
 };
