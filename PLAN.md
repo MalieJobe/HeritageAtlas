@@ -81,10 +81,14 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Places & events schema
 
-- [ ] **2.1 `places` table** — name, historical_name, lat, lng, source (geocoded/manual) + RLS.
-- [ ] **2.2 `events` table** — person_id, type (birth/death/marriage/residence/occupation/custom),
-      fuzzy date, place_id, note + RLS.
-- [ ] **2.3 Event types enum/config** — shared definition of event types + display metadata.
+- [x] **2.1 `places` table** — name, historical_name, lat, lng, source (geocoded/manual) + RLS.
+      Tree-scoped (unique (id, tree_id)) so events can composite-FK (place_id, tree_id); lat/lng
+      nullable for not-yet-located places, range-checked. Migration 0011.
+- [x] **2.2 `events` table** — `person_id`, type, fuzzy date (`event_*` columns, per `fuzzyDate.ts`),
+      `place_id` (FK on delete set null), `label` (for custom), note + RLS. Composite FKs keep the
+      person and place in the event's tree. Migration 0012.
+- [x] **2.3 Event types enum/config** — `src/lib/events.ts`: `EventType`, ordered `EVENT_TYPES`
+      with display metadata (label, icon, `locates` flag for the map resolver) + label helpers.
 
 ### Place entry
 
