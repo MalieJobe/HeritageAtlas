@@ -39,7 +39,17 @@
 		{#if data.persons.length > 0}
 			<ul class="flex flex-col divide-y divide-sage/40 rounded-lg border border-sage bg-white">
 				{#each data.persons as person (person.id)}
-					<li class="px-4 py-3 text-ink">{person.name}</li>
+					<li>
+						<a
+							href={resolve('/trees/[treeId]/persons/[personId]/edit', {
+								treeId: data.tree.id,
+								personId: person.id
+							})}
+							class="block px-4 py-3 text-ink hover:bg-cream"
+						>
+							{person.name}
+						</a>
+					</li>
 				{/each}
 			</ul>
 		{:else}
