@@ -10,14 +10,14 @@
 
 <div class="flex flex-col gap-8">
 	<div class="flex flex-col gap-1">
-		<h1 class="text-2xl font-semibold text-stone-800">Your trees</h1>
-		<p class="text-sm text-stone-500">Family trees you own or have been invited to.</p>
+		<h1 class="text-2xl font-semibold text-ink">Your trees</h1>
+		<p class="text-sm text-ink/60">Family trees you own or have been invited to.</p>
 	</div>
 
 	{#if data.pendingInvites > 0}
 		<a
 			href={resolve('/invitations')}
-			class="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
+			class="flex items-center justify-between rounded-lg border border-clay bg-clay/20 px-4 py-3 text-sm text-ink hover:bg-clay/30"
 		>
 			<span>
 				You have {data.pendingInvites} pending
@@ -33,11 +33,11 @@
 				<li>
 					<a
 						href={resolve('/trees/[treeId]', { treeId: tree.id })}
-						class="flex items-center justify-between rounded-lg border border-stone-200 bg-white px-4 py-3 hover:border-stone-300 hover:bg-stone-50"
+						class="flex items-center justify-between rounded-lg border border-sage bg-white px-4 py-3 hover:bg-cream"
 					>
-						<span class="font-medium text-stone-800">{tree.name}</span>
+						<span class="font-medium text-ink">{tree.name}</span>
 						<span
-							class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium tracking-wide text-stone-500 uppercase"
+							class="rounded-full bg-sage/40 px-2 py-0.5 text-xs font-medium tracking-wide text-ink/70 uppercase"
 						>
 							{tree.role}
 						</span>
@@ -46,9 +46,7 @@
 			{/each}
 		</ul>
 	{:else}
-		<p
-			class="rounded-lg border border-dashed border-stone-300 px-4 py-8 text-center text-stone-500"
-		>
+		<p class="rounded-lg border border-dashed border-sage px-4 py-8 text-center text-ink/55">
 			No trees yet. Create your first one below.
 		</p>
 	{/if}
@@ -57,9 +55,9 @@
 		method="POST"
 		action="?/create"
 		use:enhance
-		class="flex flex-col gap-2 border-t border-stone-200 pt-6"
+		class="flex flex-col gap-2 border-t border-sage pt-6"
 	>
-		<h2 class="text-sm font-medium text-stone-700">Create a new tree</h2>
+		<h2 class="text-sm font-medium text-ink/80">Create a new tree</h2>
 		<div class="flex gap-2">
 			<input
 				name="name"
@@ -67,11 +65,11 @@
 				required
 				placeholder="e.g. The Müller Family"
 				value={form?.name ?? ''}
-				class="flex-1 rounded-md border border-stone-300 px-3 py-2 text-stone-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+				class="flex-1 rounded-md border border-sage bg-white px-3 py-2 text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 			/>
 			<button
 				type="submit"
-				class="rounded-md bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700"
+				class="rounded-md bg-clay px-4 py-2 font-medium text-ink hover:bg-clay/80"
 			>
 				Create
 			</button>

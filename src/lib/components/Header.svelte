@@ -5,28 +5,24 @@
 	let { user = null }: { user?: User | null } = $props();
 </script>
 
-<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/80 backdrop-blur">
+<header class="sticky top-0 z-10 border-b border-sage bg-paper/80 backdrop-blur">
 	<div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-		<a href={resolve('/')} class="flex items-center gap-2 font-semibold text-stone-800">
-			<span
-				class="grid h-7 w-7 place-items-center rounded-md bg-amber-600 text-sm font-bold text-white"
-			>
+		<a href={resolve('/')} class="flex items-center gap-2 font-semibold text-ink">
+			<span class="grid h-7 w-7 place-items-center rounded-md bg-ink text-sm font-bold text-paper">
 				H
 			</span>
 			HeritageAtlas
 		</a>
 		<nav class="flex items-center gap-3 text-sm">
 			{#if user}
-				<a href={resolve('/trees')} class="font-medium text-stone-600 hover:text-stone-900">
-					Trees
-				</a>
-				<a href={resolve('/account')} class="text-stone-600 hover:text-stone-900">
+				<a href={resolve('/trees')} class="font-medium text-ink/70 hover:text-ink"> Trees </a>
+				<a href={resolve('/account')} class="text-ink/70 hover:text-ink">
 					{user.email}
 				</a>
 				<form method="POST" action={resolve('/auth/logout')}>
 					<button
 						type="submit"
-						class="rounded-md border border-stone-300 px-3 py-1 font-medium text-stone-700 hover:bg-stone-100"
+						class="rounded-md border border-sage px-3 py-1 font-medium text-ink/80 hover:bg-cream"
 					>
 						Sign out
 					</button>
@@ -34,7 +30,7 @@
 			{:else}
 				<a
 					href={resolve('/auth/login')}
-					class="rounded-md bg-amber-600 px-3 py-1 font-medium text-white hover:bg-amber-700"
+					class="rounded-md bg-clay px-3 py-1 font-medium text-ink hover:bg-clay/80"
 				>
 					Sign in
 				</a>

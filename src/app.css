@@ -1,5 +1,15 @@
 @import 'tailwindcss';
 
+/* Project palette. Each --color-* token generates the full set of utilities
+   (bg-, text-, border-, ring-, divide-, …) plus /opacity modifiers. */
+@theme {
+	--color-ink: #0d0f0b;
+	--color-paper: #fafbf9;
+	--color-sage: #c3ceb6;
+	--color-clay: #e9ba9c;
+	--color-cream: #f6f3db;
+}
+
 @layer base {
 	html,
 	body {
@@ -7,6 +17,6 @@
 	}
 
 	body {
-		@apply bg-stone-50 text-stone-800 antialiased;
+		@apply bg-paper text-ink antialiased;
 	}
 }

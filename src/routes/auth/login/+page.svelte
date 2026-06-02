@@ -17,12 +17,12 @@
 <svelte:head><title>Sign in · HeritageAtlas</title></svelte:head>
 
 <div>
-	<h1 class="text-2xl font-semibold text-stone-800">Welcome back</h1>
-	<p class="mt-1 text-sm text-stone-500">Sign in to your HeritageAtlas account.</p>
+	<h1 class="text-2xl font-semibold text-ink">Welcome back</h1>
+	<p class="mt-1 text-sm text-ink/60">Sign in to your HeritageAtlas account.</p>
 </div>
 
 <form method="POST" use:enhance class="flex flex-col gap-4">
-	<label class="flex flex-col gap-1 text-sm font-medium text-stone-700">
+	<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 		Email
 		<input
 			name="email"
@@ -30,18 +30,18 @@
 			autocomplete="email"
 			required
 			value={form?.email ?? ''}
-			class="rounded-md border border-stone-300 px-3 py-2 font-normal text-stone-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+			class="rounded-md border border-sage bg-white px-3 py-2 font-normal text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 		/>
 	</label>
 
-	<label class="flex flex-col gap-1 text-sm font-medium text-stone-700">
+	<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 		Password
 		<input
 			name="password"
 			type="password"
 			autocomplete="current-password"
 			required
-			class="rounded-md border border-stone-300 px-3 py-2 font-normal text-stone-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+			class="rounded-md border border-sage bg-white px-3 py-2 font-normal text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 		/>
 	</label>
 
@@ -49,17 +49,15 @@
 		<p class="text-sm text-red-600">{form.error}</p>
 	{/if}
 
-	<button
-		type="submit"
-		class="rounded-md bg-amber-600 px-3 py-2 font-medium text-white hover:bg-amber-700"
-	>
+	<button type="submit" class="rounded-md bg-clay px-3 py-2 font-medium text-ink hover:bg-clay/80">
 		Sign in
 	</button>
 </form>
 
-<p class="text-sm text-stone-500">
+<p class="text-sm text-ink/60">
 	Don't have an account?
 	<!-- signupHref is a resolve()d internal path plus a redirectTo query string -->
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-	<a href={signupHref} class="font-medium text-amber-700 hover:underline">Create one</a>
+	<a href={signupHref} class="font-medium text-ink underline-offset-2 hover:underline">Create one</a
+	>
 </p>

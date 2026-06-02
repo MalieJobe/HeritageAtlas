@@ -18,22 +18,24 @@
 
 {#if form?.checkEmail}
 	<div>
-		<h1 class="text-2xl font-semibold text-stone-800">Check your email</h1>
-		<p class="mt-2 text-sm text-stone-500">
-			We sent a confirmation link to <strong class="text-stone-700">{form.email}</strong>. Click it
-			to activate your account, then sign in.
+		<h1 class="text-2xl font-semibold text-ink">Check your email</h1>
+		<p class="mt-2 text-sm text-ink/60">
+			We sent a confirmation link to <strong class="text-ink/80">{form.email}</strong>. Click it to
+			activate your account, then sign in.
 		</p>
 	</div>
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-	<a href={loginHref} class="font-medium text-amber-700 hover:underline">Back to sign in</a>
+	<a href={loginHref} class="font-medium text-ink underline-offset-2 hover:underline">
+		Back to sign in
+	</a>
 {:else}
 	<div>
-		<h1 class="text-2xl font-semibold text-stone-800">Create your account</h1>
-		<p class="mt-1 text-sm text-stone-500">Start building your family atlas.</p>
+		<h1 class="text-2xl font-semibold text-ink">Create your account</h1>
+		<p class="mt-1 text-sm text-ink/60">Start building your family atlas.</p>
 	</div>
 
 	<form method="POST" use:enhance class="flex flex-col gap-4">
-		<label class="flex flex-col gap-1 text-sm font-medium text-stone-700">
+		<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 			Email
 			<input
 				name="email"
@@ -41,11 +43,11 @@
 				autocomplete="email"
 				required
 				value={form?.email ?? ''}
-				class="rounded-md border border-stone-300 px-3 py-2 font-normal text-stone-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+				class="rounded-md border border-sage bg-white px-3 py-2 font-normal text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 			/>
 		</label>
 
-		<label class="flex flex-col gap-1 text-sm font-medium text-stone-700">
+		<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 			Password
 			<input
 				name="password"
@@ -53,9 +55,9 @@
 				autocomplete="new-password"
 				required
 				minlength="8"
-				class="rounded-md border border-stone-300 px-3 py-2 font-normal text-stone-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+				class="rounded-md border border-sage bg-white px-3 py-2 font-normal text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 			/>
-			<span class="text-xs font-normal text-stone-400">At least 8 characters.</span>
+			<span class="text-xs font-normal text-ink/45">At least 8 characters.</span>
 		</label>
 
 		{#if form?.error}
@@ -64,15 +66,15 @@
 
 		<button
 			type="submit"
-			class="rounded-md bg-amber-600 px-3 py-2 font-medium text-white hover:bg-amber-700"
+			class="rounded-md bg-clay px-3 py-2 font-medium text-ink hover:bg-clay/80"
 		>
 			Create account
 		</button>
 	</form>
 
-	<p class="text-sm text-stone-500">
+	<p class="text-sm text-ink/60">
 		Already have an account?
 		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-		<a href={loginHref} class="font-medium text-amber-700 hover:underline">Sign in</a>
+		<a href={loginHref} class="font-medium text-ink underline-offset-2 hover:underline">Sign in</a>
 	</p>
 {/if}
