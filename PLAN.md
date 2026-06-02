@@ -51,10 +51,10 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Persons CRUD
 
-- [ ] **1.14 Add person** — form for names + gender + notes; create within a tree.
-- [ ] **1.15 Edit / delete person** — edit form; safe delete (handle dangling relationships).
-- [ ] **1.16 Profile photo upload** — Supabase Storage bucket + upload/crop, set as profile photo.
-- [ ] **1.17 Person detail panel** — read view: names, photo, gender, notes, relationships summary.
+- [x] **1.14 Add person** — form for names + gender + notes; create within a tree.
+- [x] **1.15 Edit / delete person** — edit form; safe delete (relationship edges cascade via FK).
+- [x] **1.16 Profile photo upload** — Supabase Storage bucket + upload, set as profile photo. (Crop deferred.)
+- [x] **1.17 Person detail panel** — read view: names, photo, gender, notes, relationships summary.
 
 ### Relationships UI
 
