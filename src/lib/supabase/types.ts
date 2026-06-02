@@ -14,6 +14,76 @@ export type Database = {
   }
   public: {
     Tables: {
+      events: {
+        Row: {
+          created_at: string
+          event_date: string | null
+          event_date_end: string | null
+          event_precision: Database["public"]["Enums"]["date_precision"] | null
+          event_qualifier: Database["public"]["Enums"]["date_qualifier"] | null
+          id: string
+          label: string | null
+          note: string | null
+          person_id: string
+          place_id: string | null
+          tree_id: string
+          type: Database["public"]["Enums"]["event_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string | null
+          event_date_end?: string | null
+          event_precision?: Database["public"]["Enums"]["date_precision"] | null
+          event_qualifier?: Database["public"]["Enums"]["date_qualifier"] | null
+          id?: string
+          label?: string | null
+          note?: string | null
+          person_id: string
+          place_id?: string | null
+          tree_id: string
+          type?: Database["public"]["Enums"]["event_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_date?: string | null
+          event_date_end?: string | null
+          event_precision?: Database["public"]["Enums"]["date_precision"] | null
+          event_qualifier?: Database["public"]["Enums"]["date_qualifier"] | null
+          id?: string
+          label?: string | null
+          note?: string | null
+          person_id?: string
+          place_id?: string | null
+          tree_id?: string
+          type?: Database["public"]["Enums"]["event_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_person_id_tree_id_fkey"
+            columns: ["person_id", "tree_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id", "tree_id"]
+          },
+          {
+            foreignKeyName: "events_place_id_tree_id_fkey"
+            columns: ["place_id", "tree_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id", "tree_id"]
+          },
+          {
+            foreignKeyName: "events_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           created_at: string
@@ -206,6 +276,50 @@ export type Database = {
           },
         ]
       }
+      places: {
+        Row: {
+          created_at: string
+          historical_name: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          name: string
+          source: Database["public"]["Enums"]["place_source"]
+          tree_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          historical_name?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          source?: Database["public"]["Enums"]["place_source"]
+          tree_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          historical_name?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          source?: Database["public"]["Enums"]["place_source"]
+          tree_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "places_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -296,7 +410,15 @@ export type Database = {
         | "after"
         | "between"
         | "estimated"
+      event_type:
+        | "birth"
+        | "death"
+        | "marriage"
+        | "residence"
+        | "occupation"
+        | "custom"
       partnership_status: "current" | "former"
+      place_source: "geocoded" | "manual"
       tree_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
@@ -434,7 +556,16 @@ export const Constants = {
         "between",
         "estimated",
       ],
+      event_type: [
+        "birth",
+        "death",
+        "marriage",
+        "residence",
+        "occupation",
+        "custom",
+      ],
       partnership_status: ["current", "former"],
+      place_source: ["geocoded", "manual"],
       tree_role: ["owner", "editor", "viewer"],
     },
   },
