@@ -1,1 +1,12 @@
 @import 'tailwindcss';
+
+@layer base {
+	html,
+	body {
+		@apply h-full;
+	}
+
+	body {
+		@apply bg-stone-50 text-stone-800 antialiased;
+	}
+}

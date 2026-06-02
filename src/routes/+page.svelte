@@ -1,4 +1,6 @@
-<div class="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50">
-	<h1 class="text-3xl font-bold text-slate-800">HeritageAtlas</h1>
-	<p class="text-slate-500">Tailwind is wired up.</p>
-</div>
+<section class="space-y-3">
+	<h1 class="text-2xl font-bold text-stone-800">HeritageAtlas</h1>
+	<p class="max-w-prose text-stone-600">
+		Record your family's history and see where they lived across time on a historical map.
+	</p>
+</section>
