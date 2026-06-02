@@ -8,6 +8,7 @@ longer exist.
 ## Decisions (locked)
 
 ### Platform & stack
+
 - **Hosted web app with accounts** (multi-user, shared database).
 - **SvelteKit + TypeScript + Tailwind**.
 - **Supabase** for Postgres + auth + file storage + row-level security.
@@ -16,12 +17,14 @@ longer exist.
   ranked by generation so it reads top-down rather than tangling.
 
 ### Accounts & sharing
+
 - **Per-user trees + sharing.** Each account owns one or more trees.
 - Role-based invites per tree: **owner / editor / viewer**.
 - **Invite-only — no public links.** No anonymous access. Living-person redaction deferred
   (only trusted, invited family sees data).
 
 ### Data model
+
 - **Custom Postgres schema** (tuned for map/timeline), with **GEDCOM import + export** for interop.
 - **Full real-world relationship model:** partnerships (married or unmarried), multiple partners
   over a lifetime, same-sex couples, divorce/separation with dates, and typed parent-child links
@@ -38,6 +41,7 @@ longer exist.
   or unfound places. Geocoded once, reused.
 
 ### Map & timeline
+
 - **Position over time = event-based location timeline.** At slider-year T, a person's dot sits at
   the place of their most recent event ≤ T.
 - **Dots:** no clustering. One dot per person = **profile photo (or initials) with a colored border
@@ -50,6 +54,7 @@ longer exist.
   (manual override); **play button** animates the sweep so dots migrate across the map.
 
 ### Interaction (synced split view)
+
 - Tree on one side, map on the other.
 - **Selection sync only:** selecting a person in one pane highlights & centers them in the other.
   (No hover sync, no viewport/filter sync.)
@@ -57,12 +62,14 @@ longer exist.
   not-yet-born or deceased at the slider year are faded/dimmed — no relayout.
 
 ## Build sequence
+
 1. **Foundation (first):** auth, trees, people, relationships, person profiles, the family graph.
 2. **Map basics:** events with places, dots layer, synced split view, timeline on a modern basemap.
 3. **Historical layer:** vector borders by year, surname coloring, play animation.
 4. **Polish:** GEDCOM import/export; fuzzy-date UI refinements.
 
 ## Open / deferred
+
 - Living-person privacy redaction (deferred — revisit if public sharing is ever added).
 - Source citations on facts (deferred to a later phase).
 - Photo galleries + event/place photo attachment (MVP is one profile photo per person).
