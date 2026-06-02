@@ -17,6 +17,9 @@
 		</a>
 		<nav class="flex items-center gap-3 text-sm">
 			{#if user}
+				<a href={resolve('/trees')} class="font-medium text-stone-600 hover:text-stone-900">
+					Trees
+				</a>
 				<a href={resolve('/account')} class="text-stone-600 hover:text-stone-900">
 					{user.email}
 				</a>
