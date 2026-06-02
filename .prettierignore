@@ -11,3 +11,6 @@ bun.lockb
 # Local tooling (git-ignored)
 .claude/
 .svelte-kit/
+
+# Generated (kept verbatim from `pnpm gen:types`)
+src/lib/supabase/types.ts

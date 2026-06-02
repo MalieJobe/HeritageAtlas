@@ -12,6 +12,8 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	// Supabase-generated file; kept verbatim so `pnpm gen:types` output is clean.
+	{ ignores: ['src/lib/supabase/types.ts'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,

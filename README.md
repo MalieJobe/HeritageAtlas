@@ -47,11 +47,16 @@ SQL editor, in filename order.
 
 ## Scripts
 
-| Command        | Description                  |
-| -------------- | ---------------------------- |
-| `pnpm dev`     | Start the dev server         |
-| `pnpm build`   | Production build             |
-| `pnpm preview` | Preview the production build |
-| `pnpm check`   | Type-check (`svelte-check`)  |
-| `pnpm lint`    | Prettier check + ESLint      |
-| `pnpm format`  | Auto-format with Prettier    |
+| Command          | Description                                                   |
+| ---------------- | ------------------------------------------------------------- |
+| `pnpm dev`       | Start the dev server                                          |
+| `pnpm build`     | Production build                                              |
+| `pnpm preview`   | Preview the production build                                  |
+| `pnpm check`     | Type-check (`svelte-check`)                                   |
+| `pnpm lint`      | Prettier check + ESLint                                       |
+| `pnpm format`    | Auto-format with Prettier                                     |
+| `pnpm gen:types` | Regenerate Supabase DB types into `src/lib/supabase/types.ts` |
+
+`gen:types` needs the [Supabase CLI](https://supabase.com/docs/guides/cli) and an
+access token (`supabase login`, or set `SUPABASE_ACCESS_TOKEN`). The generated file
+is kept verbatim and is exempt from lint/format.
