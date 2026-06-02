@@ -138,3 +138,9 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - Migration trail / path lines on the map.
 - Raster scanned-map overlays.
 - Public read-only share links.
+
+## Pre-launch checklist
+
+- [ ] **Re-enable "Confirm email"** in Supabase (Authentication → Providers → Email).
+      It was turned off during development for password sign-up without SMTP; turn it
+      back on (and configure SMTP) before any real users sign up.
