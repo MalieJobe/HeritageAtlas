@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import type { Cookies } from '@sveltejs/kit';
-import { supabaseAnonKey, supabaseUrl } from './env';
+import { supabasePublishableKey, supabaseUrl } from './env';
 import type { Database } from './types';
 
 /**
@@ -8,7 +8,7 @@ import type { Database } from './types';
  * Reads/writes the auth session via SvelteKit's request cookies.
  */
 export function createSupabaseServerClient(cookies: Cookies) {
-	return createServerClient<Database>(supabaseUrl(), supabaseAnonKey(), {
+	return createServerClient<Database>(supabaseUrl(), supabasePublishableKey(), {
 		cookies: {
 			getAll: () => cookies.getAll(),
 			setAll: (cookiesToSet) => {

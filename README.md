@@ -28,12 +28,22 @@ pnpm dev
 
 Copy [.env.example](.env.example) to `.env` and set:
 
-| Variable                   | Where to find it                            |
-| -------------------------- | ------------------------------------------- |
-| `PUBLIC_SUPABASE_URL`      | Supabase dashboard → Project Settings → API |
-| `PUBLIC_SUPABASE_ANON_KEY` | Supabase dashboard → Project Settings → API |
+| Variable                          | Where to find it                                          |
+| --------------------------------- | --------------------------------------------------------- |
+| `PUBLIC_SUPABASE_URL`             | Supabase dashboard → Project Settings → API → Project URL |
+| `PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Project Settings → API Keys → "publishable" key           |
 
-Both are public (browser-safe) keys; `.env` itself is git-ignored.
+Both are public (browser-safe) values; `.env` itself is git-ignored.
+
+### Auth & database setup
+
+Email/password auth is enabled by default on new Supabase projects. For local dev,
+turn **off** "Confirm email" (Authentication → Providers → Email) so sign-ups work
+without an SMTP server, or leave it on and check the inbox.
+
+Database schema lives in [supabase/migrations/](supabase/migrations/). Apply it with
+the Supabase CLI (`supabase db push`) or by pasting each migration into the dashboard
+SQL editor, in filename order.
 
 ## Scripts
 

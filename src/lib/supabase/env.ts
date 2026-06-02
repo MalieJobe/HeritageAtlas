@@ -9,5 +9,10 @@ function requireEnv(name: string, value: string | undefined): string {
 
 /** Public Supabase credentials, read at runtime from PUBLIC_SUPABASE_* env vars. */
 export const supabaseUrl = () => requireEnv('PUBLIC_SUPABASE_URL', env.PUBLIC_SUPABASE_URL);
-export const supabaseAnonKey = () =>
-	requireEnv('PUBLIC_SUPABASE_ANON_KEY', env.PUBLIC_SUPABASE_ANON_KEY);
+
+/**
+ * The publishable (browser-safe) Supabase API key. This is Supabase's current
+ * naming for what used to be called the "anon" key — safe to expose to the client.
+ */
+export const supabasePublishableKey = () =>
+	requireEnv('PUBLIC_SUPABASE_PUBLISHABLE_KEY', env.PUBLIC_SUPABASE_PUBLISHABLE_KEY);

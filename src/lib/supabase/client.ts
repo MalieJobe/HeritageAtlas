@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
-import { supabaseAnonKey, supabaseUrl } from './env';
+import { supabasePublishableKey, supabaseUrl } from './env';
 import type { Database } from './types';
 
 /**
@@ -7,5 +7,5 @@ import type { Database } from './types';
  * (via @supabase/ssr) so it stays in sync with the server.
  */
 export function createSupabaseBrowserClient() {
-	return createBrowserClient<Database>(supabaseUrl(), supabaseAnonKey());
+	return createBrowserClient<Database>(supabaseUrl(), supabasePublishableKey());
 }
