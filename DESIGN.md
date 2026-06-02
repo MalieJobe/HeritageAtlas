@@ -32,6 +32,12 @@ longer exist.
 - **Fuzzy dates with qualifiers:** value + qualifier (exact / about / before / after / between /
   estimated) and partial precision (year-only, month-year, full). Timeline resolves a best-guess
   point but tracks uncertainty.
+  - **Storage convention** (since task 1.9): each fuzzy date is a group of four flat columns
+    sharing a prefix — `<prefix>_date` (best-guess / lower bound), `<prefix>_date_end` (upper
+    bound, only for the `between` qualifier), `<prefix>_qualifier` (enum `date_qualifier`), and
+    `<prefix>_precision` (enum `date_precision`: day / month / year). All nullable; a fully-null
+    group means "no date". Reused across tables (`partnerships.began_*` / `.ended_*`, and
+    `events.*` in Phase 2). The TS shape and formatter live in [src/lib/fuzzyDate.ts](src/lib/fuzzyDate.ts).
 - **Person record:** given name(s), surname, birth/maiden surname, nickname; sex/gender; free-text
   notes; **one profile photo** (used on dots & tree nodes); and a flexible list of **life events**.
 - **Events:** birth, death, marriage, residence/moved, occupation, custom — each with a fuzzy date,
