@@ -18,8 +18,27 @@ function orderedPair(a: string, b: string): [string, string] {
 	return a < b ? [a, b] : [b, a];
 }
 
-function photoPath(treeId: string, personId: string): string {
-	return `${treeId}/${personId}`;
+const isExternal = (p: string | null | undefined) => !!p && /^https?:\/\//.test(p);
+
+/** Keep persons.profile_photo_path pointing at the first gallery photo (the one
+ *  shown in the trees/map). Called after any photo add/delete/reorder. */
+async function syncProfilePhoto(
+	supabase: Parameters<typeof requireEditableTree>[0],
+	treeId: string,
+	personId: string
+) {
+	const { data } = await supabase
+		.from('person_photos')
+		.select('path')
+		.eq('tree_id', treeId)
+		.eq('person_id', personId)
+		.order('position')
+		.limit(1);
+	await supabase
+		.from('persons')
+		.update({ profile_photo_path: data?.[0]?.path ?? null })
+		.eq('id', personId)
+		.eq('tree_id', treeId);
 }
 
 function field(formData: FormData, name: string): string | null {
@@ -70,6 +89,14 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 	const all = everyone ?? [];
 	const personById = new Map(all.map((p) => [p.id, p]));
 
+	// This person's gallery photos, in display order.
+	const { data: photoRows } = await supabase
+		.from('person_photos')
+		.select('id, path, position')
+		.eq('tree_id', treeId)
+		.eq('person_id', personId)
+		.order('position');
+
 	// All edges in the tree — small enough to fetch whole, and we need them to build
 	// the induced subgraph for the mini tree (not just edges touching this person).
 	const [{ data: allPartners }, { data: allLinks }] = await Promise.all([
@@ -105,13 +132,13 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		...childLinks.map((r) => r.child_id),
 		...siblingIds
 	]);
-	const isExternal = (p: string | null | undefined) => !!p && /^https?:\/\//.test(p);
 	const paths: string[] = [];
 	for (const id of relatedIds) {
 		const path =
 			id === personId ? person.profile_photo_path : personById.get(id)?.profile_photo_path;
 		if (path && !isExternal(path)) paths.push(path);
 	}
+	for (const r of photoRows ?? []) if (r.path && !isExternal(r.path)) paths.push(r.path);
 	const signed = new Map<string, string>();
 	if (paths.length > 0) {
 		const { data: urls } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 3600);
@@ -119,6 +146,10 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 	}
 	const resolvePhoto = (path: string | null | undefined): string | null =>
 		path ? (isExternal(path) ? path : (signed.get(path) ?? null)) : null;
+
+	const photos = (photoRows ?? [])
+		.map((r) => ({ id: r.id, url: resolvePhoto(r.path) }))
+		.filter((p): p is { id: string; url: string } => !!p.url);
 
 	// A mini-graph node for a related person.
 	const node = (id: string) => {
@@ -286,7 +317,8 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		places: placeRows ?? [],
 		defaultPlace,
 		miniGraph,
-		centerId: personId
+		centerId: personId,
+		photos
 	};
 };
 
@@ -331,33 +363,76 @@ export const actions: Actions = {
 		if (file.size > MAX_PHOTO_BYTES)
 			return fail(400, { photoError: 'Image must be 5 MB or smaller.' });
 
-		const path = photoPath(params.treeId, params.personId);
+		// Unique object per photo (tree id stays the first path segment so the
+		// existing storage RLS policies still apply).
+		const path = `${params.treeId}/${params.personId}/${crypto.randomUUID()}`;
 		const { error: upErr } = await supabase.storage
 			.from(PHOTO_BUCKET)
-			.upload(path, file, { upsert: true, contentType: file.type });
+			.upload(path, file, { contentType: file.type });
 		if (upErr) return fail(400, { photoError: upErr.message });
 
+		const { data: last } = await supabase
+			.from('person_photos')
+			.select('position')
+			.eq('tree_id', params.treeId)
+			.eq('person_id', params.personId)
+			.order('position', { ascending: false })
+			.limit(1);
+		const nextPos = (last?.[0]?.position ?? -1) + 1;
+
 		const { error: dbErr } = await supabase
-			.from('persons')
-			.update({ profile_photo_path: path })
-			.eq('id', params.personId)
-			.eq('tree_id', params.treeId);
+			.from('person_photos')
+			.insert({ tree_id: params.treeId, person_id: params.personId, path, position: nextPos });
 		if (dbErr) return fail(400, { photoError: dbErr.message });
+
+		await syncProfilePhoto(supabase, params.treeId, params.personId);
 		return { photoUpdated: true };
 	},
 
-	removePhoto: async ({ params, locals: { supabase, user } }) => {
+	deletePhoto: async ({ params, request, locals: { supabase, user } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
-		const path = photoPath(params.treeId, params.personId);
-		await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+		const formData = await request.formData();
+		const photoId = String(formData.get('photoId') ?? '');
+		const { data: row } = await supabase
+			.from('person_photos')
+			.select('path')
+			.eq('id', photoId)
+			.eq('tree_id', params.treeId)
+			.maybeSingle();
+
 		const { error: dbErr } = await supabase
-			.from('persons')
-			.update({ profile_photo_path: null })
-			.eq('id', params.personId)
+			.from('person_photos')
+			.delete()
+			.eq('id', photoId)
 			.eq('tree_id', params.treeId);
 		if (dbErr) return fail(400, { photoError: dbErr.message });
+
+		if (row?.path && !isExternal(row.path)) {
+			await supabase.storage.from(PHOTO_BUCKET).remove([row.path]);
+		}
+		await syncProfilePhoto(supabase, params.treeId, params.personId);
+		return { photoUpdated: true };
+	},
+
+	reorderPhotos: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const order = String(formData.get('order') ?? '')
+			.split(',')
+			.filter(Boolean);
+		for (let i = 0; i < order.length; i++) {
+			await supabase
+				.from('person_photos')
+				.update({ position: i })
+				.eq('id', order[i])
+				.eq('tree_id', params.treeId)
+				.eq('person_id', params.personId);
+		}
+		await syncProfilePhoto(supabase, params.treeId, params.personId);
 		return { photoUpdated: true };
 	},
 
@@ -365,7 +440,15 @@ export const actions: Actions = {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
-		await supabase.storage.from(PHOTO_BUCKET).remove([photoPath(params.treeId, params.personId)]);
+		// Remove the person's storage objects (rows cascade via FK).
+		const { data: rows } = await supabase
+			.from('person_photos')
+			.select('path')
+			.eq('tree_id', params.treeId)
+			.eq('person_id', params.personId);
+		const objects = (rows ?? []).map((r) => r.path).filter((p) => !isExternal(p));
+		if (objects.length > 0) await supabase.storage.from(PHOTO_BUCKET).remove(objects);
+
 		const { error: dbError } = await supabase
 			.from('persons')
 			.delete()

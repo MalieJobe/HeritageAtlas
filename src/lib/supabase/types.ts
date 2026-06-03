@@ -223,6 +223,41 @@ export type Database = {
           },
         ]
       }
+      person_photos: {
+        Row: {
+          created_at: string
+          id: string
+          path: string
+          person_id: string
+          position: number
+          tree_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          path: string
+          person_id: string
+          position?: number
+          tree_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          path?: string
+          person_id?: string
+          position?: number
+          tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_photos_person_fkey"
+            columns: ["person_id", "tree_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id", "tree_id"]
+          },
+        ]
+      }
       persons: {
         Row: {
           birth_surname: string | null

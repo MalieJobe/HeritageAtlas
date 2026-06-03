@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
-	import { personInitials, personName } from '$lib/person';
-	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
+	import { personName } from '$lib/person';
+	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import EventForm from '$lib/components/EventForm.svelte';
 	import MiniFamily from '$lib/components/MiniFamily.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -84,43 +84,12 @@
 
 	<!-- Row 1: base info | mini family graph -->
 	<div class="grid gap-6 lg:grid-cols-2">
-		<!-- Left: editable base info -->
+		<!-- Left: photos + editable base info -->
 		<section class="flex flex-col gap-5">
-			<div class="flex items-start gap-4">
-				<PersonAvatar photoUrl={data.photoUrl} initials={personInitials(person)} size={80} />
-				{#if data.canEdit}
-					<div class="flex flex-col gap-1.5 text-sm">
-						<form
-							method="POST"
-							action="?/uploadPhoto"
-							enctype="multipart/form-data"
-							use:enhance
-							class="flex flex-wrap items-center gap-2"
-						>
-							<input
-								name="photo"
-								type="file"
-								accept="image/*"
-								required
-								class="text-xs text-ink/70 file:mr-2 file:rounded-md file:border file:border-sage file:bg-white file:px-2 file:py-1 file:text-xs file:font-medium file:text-ink hover:file:bg-cream"
-							/>
-							<button
-								type="submit"
-								class="rounded-md bg-clay px-2.5 py-1 text-xs font-medium text-ink hover:bg-clay/80"
-								>Upload</button
-							>
-						</form>
-						{#if data.photoUrl}
-							<form method="POST" action="?/removePhoto" use:enhance>
-								<button type="submit" class="text-xs text-ink/50 hover:text-red-600"
-									>Remove photo</button
-								>
-							</form>
-						{/if}
-						{#if form?.photoError}
-							<p class="text-xs text-red-600">{form.photoError}</p>
-						{/if}
-					</div>
+			<div class="flex flex-col gap-1">
+				<PhotoGallery photos={data.photos} canEdit={data.canEdit} />
+				{#if form?.photoError}
+					<p class="text-xs text-red-600">{form.photoError}</p>
 				{/if}
 			</div>
 
