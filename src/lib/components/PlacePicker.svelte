@@ -19,6 +19,18 @@
 	// (live filter), then new places from geocoding (debounced) below them.
 	let query = $state('');
 
+	// The suggestion dropdown opens on focus and closes on Escape / focus loss.
+	let open = $state(false);
+	let comboEl = $state<HTMLDivElement>();
+	$effect(() => {
+		if (!open) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') open = false;
+		};
+		document.addEventListener('keydown', onKey);
+		return () => document.removeEventListener('keydown', onKey);
+	});
+
 	let matches = $derived.by(() => {
 		const q = normalizePlaceName(query);
 		return q ? places.filter((p) => normalizePlaceName(p.name).includes(q)) : places;
@@ -148,72 +160,88 @@
 	</div>
 {:else}
 	<div class="space-y-3">
-		<input
-			type="text"
-			role="combobox"
-			aria-expanded={matches.length > 0 || searching}
-			aria-controls="place-results"
-			autocomplete="off"
-			bind:value={query}
-			oninput={onInput}
-			placeholder="Search places…"
-			class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
-		/>
+		<div
+			class="relative"
+			bind:this={comboEl}
+			onfocusout={(e) => {
+				if (comboEl && !comboEl.contains(e.relatedTarget as Node)) open = false;
+			}}
+		>
+			<input
+				type="text"
+				role="combobox"
+				aria-expanded={open}
+				aria-controls="place-results"
+				autocomplete="off"
+				bind:value={query}
+				oninput={onInput}
+				onfocus={() => (open = true)}
+				placeholder="Search places…"
+				class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
+			/>
 
-		<div id="place-results" class="overflow-hidden rounded-md border border-sage">
-			<!-- Existing places: capped to ~2 rows, scroll for the rest. -->
-			{#if matches.length > 0}
-				<p class="border-b border-sage/60 bg-cream/40 px-3 py-1 text-[10px] text-ink/45">
-					In this tree
-				</p>
-				<ul class="max-h-24 overflow-y-auto">
-					{#each matches as place (place.id)}
-						<li class="border-b border-sage/40 last:border-b-0">
-							<button
-								type="button"
-								onclick={() => pickExisting(place)}
-								class="block w-full px-3 py-2 text-left text-sm hover:bg-cream"
-							>
-								<span class="font-medium text-ink">{place.name}</span>
-								<span class="block text-xs text-ink/55">{formatCoords(place.lat, place.lng)}</span>
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+			{#if open}
+				<div
+					id="place-results"
+					class="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-sage bg-paper shadow-lg"
+				>
+					<!-- Existing places: capped to ~2 rows, scroll for the rest. -->
+					{#if matches.length > 0}
+						<p class="border-b border-sage/60 bg-cream/40 px-3 py-1 text-[10px] text-ink/45">
+							In this tree
+						</p>
+						<ul class="max-h-24 overflow-y-auto">
+							{#each matches as place (place.id)}
+								<li class="border-b border-sage/40 last:border-b-0">
+									<button
+										type="button"
+										onclick={() => pickExisting(place)}
+										class="block w-full px-3 py-2 text-left text-sm hover:bg-cream"
+									>
+										<span class="font-medium text-ink">{place.name}</span>
+										<span class="block text-xs text-ink/55"
+											>{formatCoords(place.lat, place.lng)}</span
+										>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 
-			<!-- New places from geocoding, shown once the query is long enough. -->
-			{#if searching}
-				<p class="border-y border-sage/60 bg-cream/40 px-3 py-1 text-[10px] text-ink/45">
-					New place
-				</p>
-				{#if loading}
-					<p class="px-3 py-2 text-sm text-ink/50">Searching…</p>
-				{:else if failed}
-					<p class="px-3 py-2 text-sm text-red-600">Couldn’t reach the geocoding service.</p>
-				{:else if geoResults.length === 0}
-					<p class="px-3 py-2 text-sm text-ink/50">No matches.</p>
-				{:else}
-					<ul class="max-h-48 overflow-y-auto">
-						{#each geoResults as result (result.osmRef ?? result.displayName)}
-							<li class="border-b border-sage/40 last:border-b-0">
-								<button
-									type="button"
-									onclick={() => pickGeocoded(result)}
-									class="block w-full px-3 py-2 text-left text-sm hover:bg-cream"
-								>
-									<span class="font-medium text-ink">{result.name}</span>
-									<span class="block text-xs text-ink/55">{result.displayName}</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
-					<p class="border-t border-sage/60 px-3 py-1 text-[10px] text-ink/40">
-						{GEOCODE_ATTRIBUTION}
-					</p>
-				{/if}
-			{:else if matches.length === 0}
-				<p class="px-3 py-2 text-sm text-ink/50">Type to search for a place.</p>
+					<!-- New places from geocoding, shown once the query is long enough. -->
+					{#if searching}
+						<p class="border-y border-sage/60 bg-cream/40 px-3 py-1 text-[10px] text-ink/45">
+							New place
+						</p>
+						{#if loading}
+							<p class="px-3 py-2 text-sm text-ink/50">Searching…</p>
+						{:else if failed}
+							<p class="px-3 py-2 text-sm text-red-600">Couldn’t reach the geocoding service.</p>
+						{:else if geoResults.length === 0}
+							<p class="px-3 py-2 text-sm text-ink/50">No matches.</p>
+						{:else}
+							<ul class="max-h-48 overflow-y-auto">
+								{#each geoResults as result (result.osmRef ?? result.displayName)}
+									<li class="border-b border-sage/40 last:border-b-0">
+										<button
+											type="button"
+											onclick={() => pickGeocoded(result)}
+											class="block w-full px-3 py-2 text-left text-sm hover:bg-cream"
+										>
+											<span class="font-medium text-ink">{result.name}</span>
+											<span class="block text-xs text-ink/55">{result.displayName}</span>
+										</button>
+									</li>
+								{/each}
+							</ul>
+							<p class="border-t border-sage/60 px-3 py-1 text-[10px] text-ink/40">
+								{GEOCODE_ATTRIBUTION}
+							</p>
+						{/if}
+					{:else if matches.length === 0}
+						<p class="px-3 py-2 text-sm text-ink/50">Type to search for a place.</p>
+					{/if}
+				</div>
 			{/if}
 		</div>
 

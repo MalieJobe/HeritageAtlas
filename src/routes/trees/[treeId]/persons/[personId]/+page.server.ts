@@ -50,6 +50,15 @@ function normalizeSex(value: string | null): Sex {
 	return value === 'male' || value === 'female' || value === 'other' ? value : null;
 }
 
+/** Friendly message for the one-birth/one-death-per-person unique indexes. */
+function duplicateMessage(err: { code?: string; message: string }): string {
+	if (err.code === '23505') {
+		if (err.message.includes('birth')) return 'This person already has a birth event.';
+		if (err.message.includes('death')) return 'This person already has a death event.';
+	}
+	return err.message;
+}
+
 export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
 	if (!user) redirect(303, '/auth/login');
 
@@ -585,7 +594,7 @@ export const actions: Actions = {
 		const { error: dbError } = await supabase
 			.from('events')
 			.insert({ tree_id: params.treeId, person_id: params.personId, ...columns });
-		if (dbError) return fail(400, { eventError: dbError.message });
+		if (dbError) return fail(400, { eventError: duplicateMessage(dbError) });
 		return { ok: true };
 	},
 
@@ -612,7 +621,7 @@ export const actions: Actions = {
 			.eq('id', eventId)
 			.eq('tree_id', params.treeId)
 			.eq('person_id', params.personId);
-		if (dbError) return fail(400, { eventError: dbError.message });
+		if (dbError) return fail(400, { eventError: duplicateMessage(dbError) });
 		return { ok: true };
 	},
 

@@ -59,73 +59,70 @@
 
 	const inputClass =
 		'rounded-md border border-sage bg-white px-2 py-1.5 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none';
+
+	// Shown as a compact field; the controls live in a popover so rows stay clean.
+	// The popover is toggled with `hidden` (not removed) so its inputs still submit.
+	let open = $state(false);
+	let containerEl = $state<HTMLDivElement>();
+	$effect(() => {
+		if (!open) return;
+		const onDown = (e: PointerEvent) => {
+			if (containerEl && !containerEl.contains(e.target as Node)) open = false;
+		};
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') open = false;
+		};
+		document.addEventListener('pointerdown', onDown);
+		document.addEventListener('keydown', onKey);
+		return () => {
+			document.removeEventListener('pointerdown', onDown);
+			document.removeEventListener('keydown', onKey);
+		};
+	});
 </script>
 
-<div class="space-y-2">
-	<div class="flex flex-wrap items-end gap-2">
-		<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-			Qualifier
-			<select name="qualifier" bind:value={qualifier} class={inputClass}>
-				<option value="">Exact</option>
-				<option value="about">About</option>
-				<option value="before">Before</option>
-				<option value="after">After</option>
-				<option value="between">Between</option>
-				<option value="estimated">Estimated</option>
-			</select>
-		</label>
-		<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-			Year
-			<input
-				name="year"
-				type="number"
-				inputmode="numeric"
-				placeholder="1900"
-				bind:value={year}
-				class="{inputClass} w-24"
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-			Month
-			<select name="month" bind:value={month} class={inputClass}>
-				<option value="">—</option>
-				{#each MONTHS as label, i (i)}
-					<option value={String(i + 1)}>{label}</option>
-				{/each}
-			</select>
-		</label>
-		<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-			Day
-			<input
-				name="day"
-				type="number"
-				inputmode="numeric"
-				min="1"
-				max="31"
-				placeholder="—"
-				bind:value={day}
-				class="{inputClass} w-16"
-			/>
-		</label>
-	</div>
+<div class="relative" bind:this={containerEl}>
+	<button
+		type="button"
+		onclick={() => (open = !open)}
+		class="w-full rounded-md border border-sage bg-white px-3 py-1.5 text-left text-sm text-ink hover:border-clay focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
+	>
+		{#if preview}<span class="text-ink">{preview}</span>{:else}<span class="text-ink/40"
+				>Add date</span
+			>{/if}
+	</button>
 
-	{#if qualifier === 'between'}
+	<!-- Opens upward so it never runs off the bottom of the page. -->
+	<div
+		class:hidden={!open}
+		class="absolute bottom-full z-20 mb-1 w-64 space-y-2 rounded-md border border-sage bg-paper p-3 shadow-lg"
+	>
 		<div class="flex flex-wrap items-end gap-2">
-			<span class="pb-1.5 text-xs font-medium text-ink/45">and</span>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-				End year
+				Qualifier
+				<select name="qualifier" bind:value={qualifier} class={inputClass}>
+					<option value="">Exact</option>
+					<option value="about">About</option>
+					<option value="before">Before</option>
+					<option value="after">After</option>
+					<option value="between">Between</option>
+					<option value="estimated">Estimated</option>
+				</select>
+			</label>
+			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
+				Year
 				<input
-					name="end_year"
-					type="number"
+					name="year"
+					type="text"
 					inputmode="numeric"
-					placeholder="1905"
-					bind:value={endYear}
+					placeholder="1900"
+					bind:value={year}
 					class="{inputClass} w-24"
 				/>
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
 				Month
-				<select name="end_month" bind:value={endMonth} class={inputClass}>
+				<select name="month" bind:value={month} class={inputClass}>
 					<option value="">—</option>
 					{#each MONTHS as label, i (i)}
 						<option value={String(i + 1)}>{label}</option>
@@ -135,20 +132,59 @@
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
 				Day
 				<input
-					name="end_day"
-					type="number"
+					name="day"
+					type="text"
 					inputmode="numeric"
 					min="1"
 					max="31"
 					placeholder="—"
-					bind:value={endDay}
+					bind:value={day}
 					class="{inputClass} w-16"
 				/>
 			</label>
 		</div>
-	{/if}
 
-	<p class="text-xs text-ink/55">
-		{#if preview}Reads as: <span class="font-medium text-ink/80">{preview}</span>{:else}No date{/if}
-	</p>
+		{#if qualifier === 'between'}
+			<div class="flex flex-wrap items-end gap-2">
+				<span class="pb-1.5 text-xs font-medium text-ink/45">and</span>
+				<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
+					End year
+					<input
+						name="end_year"
+						type="text"
+						inputmode="numeric"
+						placeholder="1905"
+						bind:value={endYear}
+						class="{inputClass} w-24"
+					/>
+				</label>
+				<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
+					Month
+					<select name="end_month" bind:value={endMonth} class={inputClass}>
+						<option value="">—</option>
+						{#each MONTHS as label, i (i)}
+							<option value={String(i + 1)}>{label}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
+					Day
+					<input
+						name="end_day"
+						type="text"
+						inputmode="numeric"
+						min="1"
+						max="31"
+						placeholder="—"
+						bind:value={endDay}
+						class="{inputClass} w-16"
+					/>
+				</label>
+			</div>
+		{/if}
+
+		<p class="text-xs text-ink/55">
+			{#if preview}Reads as: <span class="font-medium text-ink/80">{preview}</span>{:else}No date{/if}
+		</p>
+	</div>
 </div>

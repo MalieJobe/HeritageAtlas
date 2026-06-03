@@ -23,12 +23,15 @@
 		places = [],
 		event,
 		defaultPlace = null,
-		defaultType = 'residence'
+		defaultType = 'residence',
+		hideTypes = []
 	}: {
 		places?: Place[];
 		event?: EventRowInitial;
 		defaultPlace?: PlaceSelection | null;
 		defaultType?: EventType;
+		/** Types to omit from the picker (e.g. birth/death already used), unless selected. */
+		hideTypes?: EventType[];
 	} = $props();
 
 	const init = untrack(() => event);
@@ -37,10 +40,14 @@
 	let type = $state(init?.type ?? seedType);
 	let placeSelection = $state<PlaceSelection | null>(init?.place ?? seedPlace);
 
+	let typeOptions = $derived(
+		EVENT_TYPES.filter((m) => m.type === type || !hideTypes.includes(m.type))
+	);
+
 	// Renders exactly three grid cells (type · date · place); the host form adds the
-	// action cell. The host grid is `display:contents`-friendly so these align to
-	// the table columns.
-	const cell = 'border-b border-sage/40 py-2 pr-3 align-top';
+	// action cell. Cells stretch to the row height (grid default) so every row's
+	// bottom border lines up; content sits at the top.
+	const cell = 'flex flex-col border-b border-sage/40 py-2 pr-3';
 </script>
 
 <div class={cell}>
@@ -49,7 +56,7 @@
 		bind:value={type}
 		class="rounded-md border border-sage bg-white px-2 py-1.5 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 	>
-		{#each EVENT_TYPES as meta (meta.type)}
+		{#each typeOptions as meta (meta.type)}
 			<option value={meta.type}>{meta.icon} {meta.label}</option>
 		{/each}
 	</select>

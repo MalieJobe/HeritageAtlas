@@ -12,6 +12,11 @@
 	let person = $derived(data.person);
 	let name = $derived(personName(person));
 
+	// Birth and death are limited to one each — don't offer a used one when adding.
+	let usedSingletonTypes = $derived(
+		(['birth', 'death'] as const).filter((t) => data.events.some((e) => e.type === t))
+	);
+
 	const inputClass =
 		'rounded-md border border-sage bg-white px-3 py-2 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none';
 
@@ -236,7 +241,7 @@
 			<p class="text-sm text-ink/55">No events recorded.</p>
 		{:else}
 			<div
-				class="grid grid-cols-[max-content_minmax(150px,1fr)_minmax(220px,1.6fr)_max-content] items-start gap-x-3 text-sm"
+				class="grid grid-cols-[max-content_minmax(150px,1fr)_minmax(220px,1.6fr)_max-content] gap-x-3 text-sm"
 			>
 				{#snippet header(text: string)}
 					<div class="border-b border-sage pb-1.5 text-xs font-medium tracking-wide text-ink/45">
@@ -252,8 +257,12 @@
 					{#if data.canEdit && editingId === event.id}
 						<form class="contents" method="POST" action="?/updateEvent" use:enhance={saveEnhance}>
 							<input type="hidden" name="eventId" value={event.id} />
-							<EventRowFields places={data.places} event={event.initial} />
-							<div class="border-b border-sage/40 py-2 text-right align-top whitespace-nowrap">
+							<EventRowFields
+								places={data.places}
+								event={event.initial}
+								hideTypes={usedSingletonTypes}
+							/>
+							<div class="border-b border-sage/40 py-2 text-right whitespace-nowrap">
 								<button
 									type="submit"
 									class="rounded-md bg-clay px-2.5 py-1 text-xs font-medium text-ink hover:bg-clay/80"
@@ -299,8 +308,9 @@
 								places={data.places}
 								defaultPlace={data.defaultPlace}
 								defaultType={data.defaultType}
+								hideTypes={usedSingletonTypes}
 							/>
-							<div class="border-b border-sage/40 py-2 text-right align-top whitespace-nowrap">
+							<div class="border-b border-sage/40 py-2 text-right whitespace-nowrap">
 								<button
 									type="submit"
 									class="rounded-md bg-clay px-3 py-1.5 text-xs font-medium text-ink hover:bg-clay/80"
