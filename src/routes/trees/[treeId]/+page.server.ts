@@ -33,23 +33,45 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.maybeSingle();
 	const canEdit = membership?.role === 'owner' || membership?.role === 'editor';
 
-	// Persons, partnerships and parent-child links — the whole graph for this tree.
-	const [{ data: personRows }, { data: partnerRows }, { data: linkRows }] = await Promise.all([
-		supabase
-			.from('persons')
-			.select('id, given_names, surname, nickname, sex, profile_photo_path')
-			.eq('tree_id', params.treeId),
-		supabase
-			.from('partnerships')
-			.select('id, partner_a, partner_b, status')
-			.eq('tree_id', params.treeId),
-		supabase
-			.from('parent_child_links')
-			.select('id, parent_id, child_id')
-			.eq('tree_id', params.treeId)
-	]);
+	// Persons, partnerships, parent-child links and birth/death years — the whole
+	// graph for this tree.
+	const [{ data: personRows }, { data: partnerRows }, { data: linkRows }, { data: eventRows }] =
+		await Promise.all([
+			supabase
+				.from('persons')
+				.select('id, given_names, surname, nickname, sex, profile_photo_path')
+				.eq('tree_id', params.treeId),
+			supabase
+				.from('partnerships')
+				.select('id, partner_a, partner_b, status')
+				.eq('tree_id', params.treeId),
+			supabase
+				.from('parent_child_links')
+				.select('id, parent_id, child_id')
+				.eq('tree_id', params.treeId),
+			supabase
+				.from('events')
+				.select('person_id, type, event_date')
+				.eq('tree_id', params.treeId)
+				.in('type', ['birth', 'death'])
+		]);
 
 	const persons = personRows ?? [];
+
+	// Birth/death years per person (lower-bound year from the event date).
+	const yearOf = (iso: string | null): number | null => {
+		if (!iso) return null;
+		const y = Number.parseInt(iso.slice(0, 4), 10);
+		return Number.isFinite(y) ? y : null;
+	};
+	const birthYears = new Map<string, number>();
+	const deathYears = new Map<string, number>();
+	for (const ev of eventRows ?? []) {
+		const year = yearOf(ev.event_date);
+		if (year == null) continue;
+		const target = ev.type === 'death' ? deathYears : ev.type === 'birth' ? birthYears : null;
+		if (target && !target.has(ev.person_id)) target.set(ev.person_id, year);
+	}
 
 	// Resolve a stored photo path to a usable URL: external URLs (e.g. seeded
 	// demo images) are used as-is; bucket paths are batch-signed in one round trip.
@@ -78,7 +100,9 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 				surname: p.surname,
 				initials: personInitials(p),
 				sex: normalizeSex(p.sex),
-				photoUrl: resolvePhoto(p.profile_photo_path)
+				photoUrl: resolvePhoto(p.profile_photo_path),
+				birthYear: birthYears.get(p.id) ?? null,
+				deathYear: deathYears.get(p.id) ?? null
 			}))
 			.sort((a, b) => a.name.localeCompare(b.name)),
 		partnerships: (partnerRows ?? []).map((row) => ({

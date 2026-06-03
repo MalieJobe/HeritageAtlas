@@ -11,6 +11,10 @@ export type GraphPerson = {
 	initials: string;
 	sex: Sex;
 	photoUrl: string | null;
+	/** Birth year (from the birth event), shown in the card's bottom-left. */
+	birthYear: number | null;
+	/** Death year (from a death event, if any), shown in the card's bottom-right. */
+	deathYear: number | null;
 };
 
 /** A partnership edge (symmetric). `status` drives the connector style. */

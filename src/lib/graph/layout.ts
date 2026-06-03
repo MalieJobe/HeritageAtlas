@@ -2,8 +2,18 @@ import type { ElkNode, ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import type { GraphData } from './types';
 
 /** Rendered card footprint, shared by the layout and the node component. */
-export const NODE_WIDTH = 170;
-export const NODE_HEIGHT = 186;
+export const NODE_WIDTH = 167;
+export const NODE_HEIGHT = 175;
+
+/**
+ * Connection anchors in node-local coordinates (origin = node's top-left), shared
+ * with PersonNode so connectors meet the artwork. The partnership line attaches at
+ * the node's mid-height; children attach at the top of the photo blob; a lone
+ * parent's line leaves from the bottom of the name card.
+ */
+export const PARTNER_ANCHOR_Y = 86;
+export const CHILD_TOP_Y = 6;
+export const PARENT_BOTTOM_Y = 165;
 
 /** Union nodes are invisible junction points; ELK still needs a size. */
 const UNION_SIZE = 1;
@@ -11,18 +21,18 @@ const UNION_SIZE = 1;
 export type Point = { x: number; y: number };
 
 export type LayoutNode = { id: string; x: number; y: number };
-export type LayoutUnion = { id: string; x: number; y: number };
-export type LayoutEdge = {
+
+/** A family unit positioned for drawing: the parents (1–2) and the children they share. */
+export type LayoutFamily = {
 	id: string;
-	kind: 'partner' | 'parent';
+	parents: string[];
+	children: string[];
 	status?: 'current' | 'former';
-	points: Point[];
 };
 
 export type LayoutResult = {
 	nodes: Map<string, LayoutNode>;
-	unions: LayoutUnion[];
-	edges: LayoutEdge[];
+	families: LayoutFamily[];
 	width: number;
 	height: number;
 };
@@ -37,18 +47,16 @@ type Union = {
 	partnershipStatus?: 'current' | 'former';
 };
 
-type EdgeMeta = { kind: 'partner' | 'parent'; status?: 'current' | 'former' };
-
 /**
  * Turn the raw graph into ELK input using the union-node model: both parents
  * point at a shared union node (so layered layout lands them on the same rank,
  * one above the union), and the union points down at each child (one rank below).
- * Returns the ELK graph plus a map describing how to style each edge.
+ * Returns the ELK graph plus the family units it encodes.
  */
 function buildElkGraph(data: GraphData): {
 	graph: ElkNode;
-	edgeMeta: Map<string, EdgeMeta>;
 	unionIds: Set<string>;
+	unions: Union[];
 } {
 	const unions = new Map<string, Union>();
 	const unionFor = (parentIds: string[]): Union => {
@@ -83,25 +91,16 @@ function buildElkGraph(data: GraphData): {
 	}
 
 	const personIds = new Set(data.persons.map((p) => p.id));
-	const edgeMeta = new Map<string, EdgeMeta>();
 	const edges: ElkExtendedEdge[] = [];
 
 	for (const union of unions.values()) {
-		const isPartnerUnion = union.parents.length === 2 && union.partnershipStatus != null;
 		for (const parent of union.parents) {
 			if (!personIds.has(parent)) continue;
-			const id = `pe:${parent}:${union.key}`;
-			edges.push({ id, sources: [parent], targets: [union.id] });
-			edgeMeta.set(
-				id,
-				isPartnerUnion ? { kind: 'partner', status: union.partnershipStatus } : { kind: 'parent' }
-			);
+			edges.push({ id: `pe:${parent}:${union.key}`, sources: [parent], targets: [union.id] });
 		}
 		for (const child of union.children) {
 			if (!personIds.has(child)) continue;
-			const id = `ce:${union.key}:${child}`;
-			edges.push({ id, sources: [union.id], targets: [child] });
-			edgeMeta.set(id, { kind: 'parent' });
+			edges.push({ id: `ce:${union.key}:${child}`, sources: [union.id], targets: [child] });
 		}
 	}
 
@@ -117,8 +116,8 @@ function buildElkGraph(data: GraphData): {
 			'elk.algorithm': 'layered',
 			'elk.direction': 'DOWN',
 			'elk.edgeRouting': 'ORTHOGONAL',
-			'elk.layered.spacing.nodeNodeBetweenLayers': '70',
-			'elk.spacing.nodeNode': '44',
+			'elk.layered.spacing.nodeNodeBetweenLayers': '64',
+			'elk.spacing.nodeNode': '52',
 			'elk.layered.spacing.edgeNodeBetweenLayers': '24',
 			'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
 			'elk.layered.mergeEdges': 'true',
@@ -128,16 +127,17 @@ function buildElkGraph(data: GraphData): {
 		edges
 	};
 
-	return { graph, edgeMeta, unionIds };
+	return { graph, unionIds, unions: [...unions.values()] };
 }
 
 /**
- * Run ELK over the family graph and return absolute positions for person nodes,
- * junction points for unions, and routed polylines for every connector. Pure
- * with respect to its input — safe to memoize on the graph data.
+ * Run ELK over the family graph and return absolute positions for person nodes
+ * plus the family units to connect. Connector geometry is derived from the node
+ * positions at draw time (so partnerships render as a horizontal line and
+ * children branch from its centre). Pure with respect to its input.
  */
 export async function layoutGraph(data: GraphData): Promise<LayoutResult> {
-	const { graph, edgeMeta, unionIds } = buildElkGraph(data);
+	const { graph, unionIds, unions } = buildElkGraph(data);
 	// Dynamic import keeps the ~1MB ELK bundle out of the SSR path; layout only
 	// ever runs in the browser.
 	const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
@@ -145,30 +145,24 @@ export async function layoutGraph(data: GraphData): Promise<LayoutResult> {
 	const laid = await elk.layout(graph);
 
 	const nodes = new Map<string, LayoutNode>();
-	const unions: LayoutUnion[] = [];
 	for (const child of laid.children ?? []) {
-		const x = child.x ?? 0;
-		const y = child.y ?? 0;
-		if (unionIds.has(child.id)) {
-			unions.push({ id: child.id, x: x + (child.width ?? 0) / 2, y: y + (child.height ?? 0) / 2 });
-		} else {
-			nodes.set(child.id, { id: child.id, x, y });
-		}
+		if (unionIds.has(child.id)) continue;
+		nodes.set(child.id, { id: child.id, x: child.x ?? 0, y: child.y ?? 0 });
 	}
 
-	const edges: LayoutEdge[] = [];
-	for (const edge of laid.edges ?? []) {
-		const section = edge.sections?.[0];
-		if (!section) continue;
-		const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint];
-		const meta = edgeMeta.get(edge.id) ?? { kind: 'parent' as const };
-		edges.push({ id: edge.id, kind: meta.kind, status: meta.status, points });
-	}
+	// Keep only families that still have at least one positioned member to draw.
+	const families: LayoutFamily[] = unions
+		.map((u) => ({
+			id: u.id,
+			parents: u.parents.filter((p) => nodes.has(p)),
+			children: u.children.filter((c) => nodes.has(c)),
+			status: u.partnershipStatus
+		}))
+		.filter((f) => f.parents.length > 0 && (f.children.length > 0 || f.parents.length === 2));
 
 	return {
 		nodes,
-		unions,
-		edges,
+		families,
 		width: laid.width ?? 0,
 		height: laid.height ?? 0
 	};

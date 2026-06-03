@@ -3,7 +3,16 @@
 	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
 	import PersonNode from '$lib/components/PersonNode.svelte';
 	import type { GraphData, GraphPerson } from '$lib/graph/types';
-	import { layoutGraph, type LayoutResult } from '$lib/graph/layout';
+	import {
+		layoutGraph,
+		NODE_WIDTH,
+		NODE_HEIGHT,
+		PARTNER_ANCHOR_Y,
+		CHILD_TOP_Y,
+		PARENT_BOTTOM_Y,
+		type LayoutNode,
+		type LayoutResult
+	} from '$lib/graph/layout';
 
 	let { graph, treeId }: { graph: GraphData; treeId: string } = $props();
 
@@ -133,9 +142,72 @@
 		selectedId = id;
 	}
 
-	function pointsAttr(points: { x: number; y: number }[]): string {
-		return points.map((p) => `${p.x},${p.y}`).join(' ');
+	type Connector = {
+		id: string;
+		partnerLine?: { x1: number; x2: number; y: number; status?: 'current' | 'former' };
+		junction?: { x: number; y: number };
+		childPaths: { id: string; d: string }[];
+	};
+
+	/** Orthogonal connector from a junction down to a child, with rounded corners. */
+	function childPath(jx: number, jy: number, busY: number, cx: number, cy: number): string {
+		if (Math.abs(cx - jx) < 0.5) return `M ${jx} ${jy} L ${cx} ${cy}`;
+		const dir = cx > jx ? 1 : -1;
+		const r = Math.max(
+			0,
+			Math.min(22, Math.abs(cx - jx) / 2, Math.abs(busY - jy) / 2, Math.abs(cy - busY) / 2)
+		);
+		return `M ${jx} ${jy} V ${busY - r} Q ${jx} ${busY} ${jx + dir * r} ${busY} H ${cx - dir * r} Q ${cx} ${busY} ${cx} ${busY + r} V ${cy}`;
 	}
+
+	// Connector geometry, derived from node positions: partnerships are a horizontal
+	// line between the two cards with a centre junction; children curve down from
+	// that junction (or, for a lone parent, from the bottom of their card).
+	let connectors = $derived.by<Connector[]>(() => {
+		if (!result) return [];
+		const nodes = result.nodes;
+		const out: Connector[] = [];
+		for (const fam of result.families) {
+			const parents = fam.parents.map((id) => nodes.get(id)).filter((n): n is LayoutNode => !!n);
+			if (parents.length === 0) continue;
+
+			let jx: number;
+			let jy: number;
+			let partnerLine: Connector['partnerLine'];
+			if (parents.length === 2) {
+				const left = parents[0].x <= parents[1].x ? parents[0] : parents[1];
+				const right = parents[0].x <= parents[1].x ? parents[1] : parents[0];
+				const y = left.y + PARTNER_ANCHOR_Y;
+				partnerLine = { x1: left.x + NODE_WIDTH, x2: right.x, y, status: fam.status };
+				jx = (left.x + NODE_WIDTH + right.x) / 2;
+				jy = y;
+			} else {
+				jx = parents[0].x + NODE_WIDTH / 2;
+				jy = parents[0].y + PARENT_BOTTOM_Y;
+			}
+
+			const childNodes = fam.children
+				.map((id) => nodes.get(id))
+				.filter((n): n is LayoutNode => !!n);
+			let childPaths: Connector['childPaths'] = [];
+			if (childNodes.length > 0) {
+				const minChildTop = Math.min(...childNodes.map((c) => c.y + CHILD_TOP_Y));
+				const busY = (jy + minChildTop) / 2;
+				childPaths = childNodes.map((c) => ({
+					id: c.id,
+					d: childPath(jx, jy, busY, c.x + NODE_WIDTH / 2, c.y + CHILD_TOP_Y)
+				}));
+			}
+
+			out.push({
+				id: fam.id,
+				partnerLine,
+				junction: parents.length === 2 ? { x: jx, y: jy } : undefined,
+				childPaths
+			});
+		}
+		return out;
+	});
 </script>
 
 <div
@@ -165,25 +237,39 @@
 		>
 			<g transform="translate({tx},{ty}) scale({scale})">
 				<!-- Connectors first, behind the nodes. -->
-				{#each result.edges as edge (edge.id)}
-					<polyline
-						points={pointsAttr(edge.points)}
-						fill="none"
-						stroke="#0D0F0B"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-opacity={edge.kind === 'partner' && edge.status === 'former' ? 0.5 : 0.9}
-						stroke-dasharray={edge.kind === 'partner' && edge.status === 'former'
-							? '7 7'
-							: undefined}
-					/>
+				{#each connectors as c (c.id)}
+					{#if c.partnerLine}
+						<line
+							x1={c.partnerLine.x1}
+							y1={c.partnerLine.y}
+							x2={c.partnerLine.x2}
+							y2={c.partnerLine.y}
+							stroke="#0D0F0B"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-opacity={c.partnerLine.status === 'former' ? 0.5 : 0.9}
+							stroke-dasharray={c.partnerLine.status === 'former' ? '7 7' : undefined}
+						/>
+					{/if}
+					{#each c.childPaths as cp (cp.id)}
+						<path
+							d={cp.d}
+							fill="none"
+							stroke="#0D0F0B"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-opacity="0.9"
+						/>
+					{/each}
 				{/each}
 
-				<!-- Junction dots where couples meet and children branch off. -->
+				<!-- Junction dots at the centre of each partnership line. -->
 				{#if !lod}
-					{#each result.unions as union (union.id)}
-						<circle cx={union.x} cy={union.y} r="4" fill="#D9D9D9" />
+					{#each connectors as c (c.id)}
+						{#if c.junction}
+							<circle cx={c.junction.x} cy={c.junction.y} r="4" fill="#D9D9D9" />
+						{/if}
 					{/each}
 				{/if}
 
@@ -194,8 +280,9 @@
 						<g transform="translate({pos.x},{pos.y})">
 							{#if lod}
 								<rect
-									width="170"
-									height="186"
+									y="108"
+									width={NODE_WIDTH}
+									height={NODE_HEIGHT - 108}
 									rx="12"
 									fill="#F6F3DB"
 									stroke="#0D0F0B"
