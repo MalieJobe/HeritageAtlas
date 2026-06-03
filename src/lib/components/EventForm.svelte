@@ -6,7 +6,6 @@
 	/** Initial values for editing an existing event (omit for a blank add form). */
 	export interface EventFormInitial {
 		type: EventType;
-		label: string;
 		dateParts: FuzzyDateParts;
 		place: PlaceSelection | null;
 	}
@@ -35,7 +34,7 @@
 	// form falls back to defaultPlace so a child's birthplace can pre-fill.
 	const init = untrack(() => event);
 	const seedPlace = untrack(() => defaultPlace);
-	let type = $state(init?.type ?? 'birth');
+	let type = $state(init?.type ?? 'residence');
 	let placeSelection = $state<PlaceSelection | null>(init?.place ?? seedPlace);
 
 	const inputClass =
@@ -43,26 +42,14 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	<div class="flex flex-wrap gap-3">
-		<label class="flex flex-1 flex-col gap-1 text-sm font-medium text-ink/80">
-			Name <span class="font-normal text-ink/40">(optional)</span>
-			<input
-				name="label"
-				type="text"
-				placeholder="e.g. Moved to the city"
-				value={event?.label ?? ''}
-				class={inputClass}
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-			Type
-			<select name="type" bind:value={type} class={inputClass}>
-				{#each EVENT_TYPES as meta (meta.type)}
-					<option value={meta.type}>{meta.icon} {meta.label}</option>
-				{/each}
-			</select>
-		</label>
-	</div>
+	<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
+		Type
+		<select name="type" bind:value={type} class={inputClass}>
+			{#each EVENT_TYPES as meta (meta.type)}
+				<option value={meta.type}>{meta.icon} {meta.label}</option>
+			{/each}
+		</select>
+	</label>
 
 	<div class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 		Date

@@ -139,7 +139,6 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 				: null;
 			const initial: EventFormInitial = {
 				type: row.type,
-				label: row.label ?? '',
 				dateParts: fuzzyDateToParts(fuzzyDateFromColumns(row, 'event')),
 				place
 			};
