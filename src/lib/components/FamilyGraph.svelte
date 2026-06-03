@@ -3,9 +3,36 @@
 	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
 	import PersonNode from '$lib/components/PersonNode.svelte';
 	import type { GraphData, GraphPerson } from '$lib/graph/types';
-	import { layoutGraph, buildConnectors, type LayoutResult } from '$lib/graph/layout';
+	import {
+		layoutGraph,
+		buildConnectors,
+		NODE_WIDTH,
+		NODE_HEIGHT,
+		type LayoutResult
+	} from '$lib/graph/layout';
 
-	let { graph, treeId }: { graph: GraphData; treeId: string } = $props();
+	let {
+		graph,
+		treeId,
+		selectedId = null,
+		onselect,
+		year = null,
+		fill = false
+	}: {
+		graph: GraphData;
+		treeId: string;
+		/** Controlled selection. When `onselect` is supplied the graph is driven from
+		 *  outside (split view); otherwise it manages selection itself. */
+		selectedId?: string | null;
+		onselect?: (id: string | null) => void;
+		/** Timeline year for the aging cue: nodes for the not-yet-born / already
+		 *  deceased fade out. Null disables the cue (standalone tree). */
+		year?: number | null;
+		/** Fill the parent's height instead of the standalone fixed height. */
+		fill?: boolean;
+	} = $props();
+
+	let controlled = $derived(onselect !== undefined);
 
 	let containerEl = $state<HTMLDivElement>();
 	let result = $state<LayoutResult | null>(null);
@@ -18,10 +45,12 @@
 	let ty = $state(0);
 	let scale = $state(1);
 
-	let selectedId = $state<string | null>(null);
+	// Internal selection for standalone use; in controlled mode the prop wins.
+	let internalSelected = $state<string | null>(null);
+	let activeSelected = $derived(controlled ? selectedId : internalSelected);
 	let personById = $derived(new Map(graph.persons.map((p) => [p.id, p])));
 	let selected = $derived<GraphPerson | null>(
-		selectedId ? (personById.get(selectedId) ?? null) : null
+		activeSelected ? (personById.get(activeSelected) ?? null) : null
 	);
 
 	const MIN_SCALE = 0.12;
@@ -53,6 +82,7 @@
 
 	function fitToView() {
 		if (!containerEl || !result || result.width === 0) return;
+		cancelTween();
 		const pad = 48;
 		const cw = containerEl.clientWidth;
 		const ch = containerEl.clientHeight;
@@ -74,6 +104,7 @@
 	}
 
 	function zoomAt(px: number, py: number, factor: number) {
+		cancelTween();
 		const next = clamp(scale * factor, MIN_SCALE, MAX_SCALE);
 		const ratio = next / scale;
 		tx = px - (px - tx) * ratio;
@@ -88,6 +119,46 @@
 		zoomAt(e.clientX - rect.left, e.clientY - rect.top, Math.exp(-e.deltaY * 0.0015));
 	}
 
+	// --- Smooth recentre on the selected node (split-view sync, task 2.14) ---
+	let raf = 0;
+	function cancelTween() {
+		if (raf) cancelAnimationFrame(raf);
+		raf = 0;
+	}
+	function tweenTo(tx2: number, ty2: number, s2: number, dur = 380) {
+		cancelTween();
+		const tx0 = tx;
+		const ty0 = ty;
+		const s0 = scale;
+		const start = performance.now();
+		const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+		const stepFn = (now: number) => {
+			const t = Math.min(1, (now - start) / dur);
+			const k = ease(t);
+			tx = tx0 + (tx2 - tx0) * k;
+			ty = ty0 + (ty2 - ty0) * k;
+			scale = s0 + (s2 - s0) * k;
+			if (t < 1) raf = requestAnimationFrame(stepFn);
+			else raf = 0;
+		};
+		raf = requestAnimationFrame(stepFn);
+	}
+	function centerOn(id: string) {
+		if (!containerEl || !result) return;
+		const pos = result.nodes.get(id);
+		if (!pos) return;
+		const s = clamp(Math.max(scale, 0.5), MIN_SCALE, MAX_SCALE);
+		const cw = containerEl.clientWidth;
+		const ch = containerEl.clientHeight;
+		tweenTo(cw / 2 - (pos.x + NODE_WIDTH / 2) * s, ch / 2 - (pos.y + NODE_HEIGHT / 2) * s, s);
+	}
+
+	// In controlled mode, glide to the externally-selected node when it changes.
+	$effect(() => {
+		const id = controlled ? selectedId : null;
+		if (id && result) centerOn(id);
+	});
+
 	// Pointer panning. `moved` lets us tell a pan from a click so dragging over a
 	// node doesn't select it.
 	let panning = $state(false);
@@ -98,6 +169,7 @@
 	let startTy = 0;
 
 	function onPointerDown(e: PointerEvent) {
+		cancelTween();
 		panning = true;
 		moved = false;
 		startX = e.clientX;
@@ -125,15 +197,25 @@
 
 	function handleSelect(id: string) {
 		if (moved) return; // the pointer was dragged — treat as pan, not click
-		selectedId = id;
+		if (controlled) onselect?.(id);
+		else internalSelected = id;
 	}
 
 	let connectors = $derived(result ? buildConnectors(result) : []);
+
+	/** Faded if the timeline year is set and this person isn't alive yet / anymore. */
+	function isDimmed(p: GraphPerson): boolean {
+		if (year == null) return false;
+		if (p.birthYear != null && year < p.birthYear) return true;
+		if (p.deathYear != null && year > p.deathYear) return true;
+		return false;
+	}
 </script>
 
 <div
 	bind:this={containerEl}
-	class="relative h-[70vh] min-h-105 w-full overflow-hidden rounded-lg border border-sage bg-paper select-none"
+	class="relative w-full overflow-hidden rounded-lg border border-sage bg-paper select-none
+		{fill ? 'h-full' : 'h-[70vh] min-h-105'}"
 >
 	{#if laying}
 		<div class="absolute inset-0 grid place-items-center text-sm text-ink/50">
@@ -196,8 +278,28 @@
 				{#each graph.persons as person (person.id)}
 					{@const pos = result.nodes.get(person.id)}
 					{#if pos}
-						<g transform="translate({pos.x},{pos.y})">
-							<PersonNode {person} selected={person.id === selectedId} onselect={handleSelect} />
+						<g
+							transform="translate({pos.x},{pos.y})"
+							class="ha-node"
+							opacity={isDimmed(person) ? 0.22 : 1}
+						>
+							{#if person.id === activeSelected}
+								<rect
+									x={-7}
+									y={-12}
+									width={NODE_WIDTH + 14}
+									height={188}
+									rx="16"
+									fill="none"
+									stroke="#E9BA9C"
+									stroke-width="4"
+								/>
+							{/if}
+							<PersonNode
+								{person}
+								selected={person.id === activeSelected}
+								onselect={handleSelect}
+							/>
 						</g>
 					{/if}
 				{/each}
@@ -226,15 +328,15 @@
 		</div>
 	{/if}
 
-	<!-- Selected-person detail panel -->
-	{#if selected}
+	<!-- Selected-person detail panel (standalone only; the split view shows its own). -->
+	{#if selected && !controlled}
 		<div
 			class="absolute top-3 right-3 w-64 rounded-lg border border-sage bg-white/95 p-4 shadow-md backdrop-blur"
 		>
 			<button
 				class="absolute top-2 right-2 text-ink/40 hover:text-ink"
 				aria-label="Close"
-				onclick={() => (selectedId = null)}>✕</button
+				onclick={() => (internalSelected = null)}>✕</button
 			>
 			<div class="flex flex-col items-center gap-3 text-center">
 				<PersonAvatar photoUrl={selected.photoUrl} initials={selected.initials} size={72} />
@@ -254,3 +356,9 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.ha-node {
+		transition: opacity 0.4s ease;
+	}
+</style>

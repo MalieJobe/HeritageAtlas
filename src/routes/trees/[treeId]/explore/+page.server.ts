@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.maybeSingle();
 	const canEdit = membership?.role === 'owner' || membership?.role === 'editor';
 
-	const { map } = await loadTreeViewData(supabase, params.treeId);
+	const { graph, map, timeline } = await loadTreeViewData(supabase, params.treeId);
 
-	return { tree, canEdit, map };
+	return { tree, canEdit, graph, map, timeline };
 };

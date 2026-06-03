@@ -34,12 +34,20 @@
 			</a>
 			<h1 class="text-2xl font-semibold text-ink">Map</h1>
 		</div>
-		<a
-			href={resolve('/trees/[treeId]', { treeId: data.tree.id })}
-			class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
-		>
-			Tree view
-		</a>
+		<div class="flex items-center gap-2">
+			<a
+				href={resolve('/trees/[treeId]/explore', { treeId: data.tree.id })}
+				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
+			>
+				Explore
+			</a>
+			<a
+				href={resolve('/trees/[treeId]', { treeId: data.tree.id })}
+				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
+			>
+				Tree view
+			</a>
+		</div>
 	</div>
 
 	{#if data.map.persons.length === 0}

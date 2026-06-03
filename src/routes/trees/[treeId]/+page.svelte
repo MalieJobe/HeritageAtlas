@@ -31,6 +31,12 @@
 				Map
 			</a>
 			<a
+				href={resolve('/trees/[treeId]/explore', { treeId: data.tree.id })}
+				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
+			>
+				Explore
+			</a>
+			<a
 				href={resolve('/trees/[treeId]/settings', { treeId: data.tree.id })}
 				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
 			>

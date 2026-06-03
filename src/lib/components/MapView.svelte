@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { osmRasterStyle } from '$lib/map/style';
 	import { surnameColor } from '$lib/surnameColor';
@@ -18,7 +18,8 @@
 		year: number;
 		/** Currently selected person id — shared so other panes can highlight (task 2.12). */
 		selectedId?: string | null;
-		height?: number;
+		/** Fixed pixel height; pass `null` to fill the parent (split view). */
+		height?: number | null;
 		onselect?: (id: string | null) => void;
 	} = $props();
 
@@ -154,6 +155,28 @@
 		if (ready) applySelection();
 	});
 
+	// Glide to the selected dot when the selection changes (split-view sync, task
+	// 2.14). Only on a genuine selection change — untrack `positions` so scrubbing
+	// the year doesn't keep chasing the dot around.
+	let centeredFor: string | null = null;
+	$effect(() => {
+		const id = selectedId;
+		if (!ready || !map) return;
+		if (id === centeredFor) return;
+		centeredFor = id;
+		if (!id) return;
+		const pos = untrack(() => positions).find((p) => p.person.id === id);
+		if (pos) map.easeTo({ center: [pos.lng, pos.lat], duration: 550 });
+	});
+
+	// Keep the canvas sized to its container (the split-view divider resizes it).
+	$effect(() => {
+		if (!ready || !el) return;
+		const ro = new ResizeObserver(() => map?.resize());
+		ro.observe(el);
+		return () => ro.disconnect();
+	});
+
 	onDestroy(() => {
 		for (const marker of markers.values()) marker.remove();
 		markers.clear();
@@ -164,8 +187,8 @@
 
 <div
 	bind:this={el}
-	class="w-full overflow-hidden rounded-lg border border-sage"
-	style="height:{height}px"
+	class="w-full overflow-hidden rounded-lg border border-sage {height == null ? 'h-full' : ''}"
+	style={height == null ? undefined : `height:${height}px`}
 ></div>
 
 <style>

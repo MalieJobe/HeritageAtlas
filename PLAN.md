@@ -125,12 +125,16 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Split view + timeline
 
-- [ ] **2.13 Split-view layout** — resizable tree | map panes.
-- [ ] **2.14 Selection sync** — shared selected-person state highlights/centers in both panes.
-- [ ] **2.15 Timeline slider** — year slider; range auto-derived from event dates (+ manual override).
-- [ ] **2.16 Slider drives map** — scrubbing recomputes dot positions live.
-- [ ] **2.17 Subtle aging cue** — fade tree nodes for not-yet-born / deceased at slider year.
-- [ ] **2.18 Play button** — animate the year sweep; dots move over time; play/pause/speed.
+- [x] **2.13 Split-view layout** — resizable tree | map panes (`SplitPane.svelte`, draggable divider,
+      remembered ratio). New `/trees/[treeId]/explore` route; shared `loadTreeViewData` feeds both panes.
+- [x] **2.14 Selection sync** — shared `selectedId` highlights + smoothly centers the person in both
+      panes (tree tweens to the node, map eases to the dot); a shared banner covers the off-map case.
+- [x] **2.15 Timeline slider** — `Timeline.svelte`: year slider with a painted fill; range auto-derived
+      from the tree's dated facts (located events + birth/death), with a manual From/To override + reset.
+- [x] **2.16 Slider drives map** — scrubbing `year` re-resolves positions; markers reconcile in place.
+- [x] **2.17 Subtle aging cue** — tree nodes for the not-yet-born / already-deceased fade at the slider year.
+- [x] **2.18 Play button** — rAF year sweep (years/second, consistent wall-clock), play/pause, 1×/2×/4×;
+      stops at the range end and restarts from the start on replay.
 
 ## Phase 3 — Historical map layer
 
