@@ -399,7 +399,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      gen_short_id: { Args: { len?: number }; Returns: string }
     }
     Enums: {
       date_precision: "day" | "month" | "year"
