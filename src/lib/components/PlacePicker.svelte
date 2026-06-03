@@ -1,5 +1,6 @@
 <script lang="ts">
 	import GeocodeSearch from '$lib/components/GeocodeSearch.svelte';
+	import PinDropMap from '$lib/components/PinDropMap.svelte';
 	import { formatCoords, normalizePlaceName, type Place, type PlaceSelection } from '$lib/place';
 	import type { GeocodeResult } from '$lib/geocode';
 
@@ -42,6 +43,37 @@
 			lng: result.lng,
 			source: 'geocoded'
 		});
+	}
+
+	// Pin-drop fallback: for places Nominatim can't find (vanished towns,
+	// imprecise locations) the user names it and clicks the map for coordinates.
+	let pinMode = $state(false);
+	let pinLat = $state<number | null>(null);
+	let pinLng = $state<number | null>(null);
+	let pinName = $state('');
+	let pinHistorical = $state('');
+
+	let canUsePin = $derived(pinLat != null && pinLng != null && pinName.trim().length > 0);
+
+	function resetPin() {
+		pinMode = false;
+		pinLat = null;
+		pinLng = null;
+		pinName = '';
+		pinHistorical = '';
+	}
+
+	function usePin() {
+		if (!canUsePin) return;
+		onchange({
+			kind: 'new',
+			name: pinName.trim(),
+			historicalName: pinHistorical.trim() || null,
+			lat: pinLat!,
+			lng: pinLng!,
+			source: 'manual'
+		});
+		resetPin();
 	}
 </script>
 
@@ -105,5 +137,60 @@
 			<span class="mb-1 block text-xs font-medium text-ink/60">Search for a new place</span>
 			<GeocodeSearch onselect={pickGeocoded} />
 		</div>
+
+		{#if pinMode}
+			<div class="space-y-2 rounded-md border border-sage bg-cream/40 p-3">
+				<input
+					type="text"
+					bind:value={pinName}
+					placeholder="Place name (required)"
+					autocomplete="off"
+					class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
+				/>
+				<input
+					type="text"
+					bind:value={pinHistorical}
+					placeholder="Historical name (optional)"
+					autocomplete="off"
+					class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
+				/>
+				<PinDropMap
+					lat={pinLat}
+					lng={pinLng}
+					onpick={(c) => {
+						pinLat = c.lat;
+						pinLng = c.lng;
+					}}
+				/>
+				{#if pinLat != null && pinLng != null}
+					<p class="text-xs text-ink/55">Pinned at {formatCoords(pinLat, pinLng)}</p>
+				{/if}
+				<div class="flex gap-2">
+					<button
+						type="button"
+						onclick={usePin}
+						disabled={!canUsePin}
+						class="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Use this location
+					</button>
+					<button
+						type="button"
+						onclick={resetPin}
+						class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink/70 hover:bg-paper"
+					>
+						Cancel
+					</button>
+				</div>
+			</div>
+		{:else}
+			<button
+				type="button"
+				onclick={() => (pinMode = true)}
+				class="text-xs font-medium text-ink/60 underline underline-offset-2 hover:text-ink"
+			>
+				Can’t find it? Drop a pin on the map
+			</button>
+		{/if}
 	</div>
 {/if}

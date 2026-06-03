@@ -92,9 +92,13 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Place entry
 
-- [ ] **2.4 Geocoding search** — Nominatim type-ahead search component (debounced, attribution).
-- [ ] **2.5 Pin-drop fallback** — click map to set coords for unfound/vanished places.
-- [ ] **2.6 Place reuse** — find-or-create place; avoid duplicate geocodes; pick existing places.
+- [x] **2.4 Geocoding search** — server-side Nominatim proxy (`/api/geocode`, policy-compliant
+      User-Agent) behind a debounced, abortable `GeocodeSearch` type-ahead with OSM attribution.
+- [x] **2.5 Pin-drop fallback** — `PinDropMap` (MapLibre + OSM raster style, `src/lib/map/style.ts`)
+      lets the user name an unfindable/vanished place and click the map for coords (`source=manual`).
+- [x] **2.6 Place reuse** — `PlaceSelection` + server `findOrCreatePlace` (reuses a same-name place
+      within ~100m to avoid duplicate geocodes). `PlacePicker` composes existing-place reuse + the
+      geocode search + pin-drop, emitting a selection the host form resolves.
 
 ### Events UI
 
