@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { personInitials, personName } from '$lib/person';
-import { eventTypeMeta, type EventType } from '$lib/events';
+import { EVENT_TYPES, eventTypeMeta, type EventType } from '$lib/events';
 import type { Sex } from '$lib/graph/types';
 import type { LocatingEvent, MapData, MapPerson } from '$lib/map/types';
 import type { PageServerLoad } from './$types';
@@ -95,20 +95,17 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		if (year > maxYear) maxYear = year;
 	}
 
-	// Order weight so same-year events resolve sensibly (birth before death, etc.).
-	const TYPE_WEIGHT: Record<EventType, number> = {
-		birth: 0,
-		residence: 1,
-		occupation: 2,
-		marriage: 3,
-		death: 4,
-		custom: 5
+	// Order weight so same-year events resolve sensibly (birth before residence),
+	// derived from EVENT_TYPES order; unknown types sort last.
+	const typeWeight = (t: EventType): number => {
+		const i = EVENT_TYPES.findIndex((m) => m.type === t);
+		return i === -1 ? EVENT_TYPES.length : i;
 	};
 
 	const mapPersons: MapPerson[] = persons
 		.map((p) => {
 			const events = (eventsByPerson.get(p.id) ?? []).sort(
-				(a, b) => a.year - b.year || TYPE_WEIGHT[a.type] - TYPE_WEIGHT[b.type]
+				(a, b) => a.year - b.year || typeWeight(a.type) - typeWeight(b.type)
 			);
 			return {
 				id: p.id,

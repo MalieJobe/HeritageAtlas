@@ -71,8 +71,8 @@ export async function parseEventForm(
 
 	return {
 		type,
-		// A label only means something for custom events.
-		label: type === 'custom' ? textField(formData, 'label') : null,
+		// Optional free-text name for the event (any type).
+		label: textField(formData, 'label'),
 		note: textField(formData, 'note'),
 		place_id,
 		event_date: fuzzy.date,

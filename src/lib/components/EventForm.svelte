@@ -7,7 +7,6 @@
 	export interface EventFormInitial {
 		type: EventType;
 		label: string;
-		note: string;
 		dateParts: FuzzyDateParts;
 		place: PlaceSelection | null;
 	}
@@ -23,43 +22,47 @@
 
 	let {
 		places = [],
-		event
+		event,
+		defaultPlace = null
 	}: {
 		places?: Place[];
 		event?: EventFormInitial;
+		/** Pre-selected place for a blank add form (e.g. inherited from a parent). Ignored when editing. */
+		defaultPlace?: PlaceSelection | null;
 	} = $props();
 
-	// Seeded once from the edit prop (it doesn't change after mount).
+	// Seeded once from the edit prop (it doesn't change after mount). A blank add
+	// form falls back to defaultPlace so a child's birthplace can pre-fill.
 	const init = untrack(() => event);
+	const seedPlace = untrack(() => defaultPlace);
 	let type = $state(init?.type ?? 'birth');
-	let placeSelection = $state<PlaceSelection | null>(init?.place ?? null);
+	let placeSelection = $state<PlaceSelection | null>(init?.place ?? seedPlace);
 
 	const inputClass =
 		'rounded-md border border-sage bg-white px-3 py-2 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none';
 </script>
 
-<div class="flex flex-col gap-5">
-	<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-		Event type
-		<select name="type" bind:value={type} class={inputClass}>
-			{#each EVENT_TYPES as meta (meta.type)}
-				<option value={meta.type}>{meta.icon} {meta.label}</option>
-			{/each}
-		</select>
-	</label>
-
-	{#if type === 'custom'}
-		<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-			Label
+<div class="flex flex-col gap-4">
+	<div class="flex flex-wrap gap-3">
+		<label class="flex flex-1 flex-col gap-1 text-sm font-medium text-ink/80">
+			Name <span class="font-normal text-ink/40">(optional)</span>
 			<input
 				name="label"
 				type="text"
-				placeholder="e.g. Emigrated"
+				placeholder="e.g. Moved to the city"
 				value={event?.label ?? ''}
 				class={inputClass}
 			/>
 		</label>
-	{/if}
+		<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
+			Type
+			<select name="type" bind:value={type} class={inputClass}>
+				{#each EVENT_TYPES as meta (meta.type)}
+					<option value={meta.type}>{meta.icon} {meta.label}</option>
+				{/each}
+			</select>
+		</label>
+	</div>
 
 	<div class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 		Date
@@ -75,9 +78,4 @@
 			value={placeSelection ? JSON.stringify(placeSelection) : ''}
 		/>
 	</div>
-
-	<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-		Note
-		<textarea name="note" rows="3" class={inputClass}>{event?.note ?? ''}</textarea>
-	</label>
 </div>

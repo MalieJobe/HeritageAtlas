@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { personInitials, personName } from '$lib/person';
 	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
+	import EventForm from '$lib/components/EventForm.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -15,6 +16,20 @@
 
 	function cap(value: string): string {
 		return value.charAt(0).toUpperCase() + value.slice(1);
+	}
+
+	// Inline event form: null = adding, otherwise editing that event id. `formKey`
+	// is bumped to remount EventForm (clearing its internal state) after a save.
+	let editingId = $state<string | null>(null);
+	let formKey = $state(0);
+	let editing = $derived(editingId ? (data.events.find((e) => e.id === editingId) ?? null) : null);
+
+	function startEdit(id: string) {
+		editingId = id;
+	}
+	function cancelEdit() {
+		editingId = null;
+		formKey += 1;
 	}
 </script>
 
@@ -208,6 +223,15 @@
 				{/if}
 				{#if data.canEdit}
 					{@render addForm('?/addChild', 'Add child')}
+					<a
+						href={resolve('/trees/[treeId]/persons/[personId]/children/new', {
+							treeId: data.tree.id,
+							personId: person.id
+						})}
+						class="text-xs font-medium text-ink/60 underline underline-offset-2 hover:text-ink"
+					>
+						+ New child (creates a person, birthplace from {name})
+					</a>
 				{/if}
 			</div>
 		{/if}
@@ -215,53 +239,100 @@
 
 	<!-- Events -->
 	<section class="flex flex-col gap-3 border-t border-sage pt-6">
-		<div class="flex items-center justify-between">
-			<h2 class="text-sm font-medium text-ink/80">Events</h2>
-			{#if data.canEdit}
-				<a
-					href={resolve('/trees/[treeId]/persons/[personId]/events/new', {
-						treeId: data.tree.id,
-						personId: person.id
-					})}
-					class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
-				>
-					Add event
-				</a>
-			{/if}
-		</div>
+		<h2 class="text-sm font-medium text-ink/80">Events</h2>
 
 		{#if data.events.length > 0}
-			<ul class="flex flex-col gap-2 text-sm">
-				{#each data.events as event (event.id)}
-					<li class="flex items-start gap-3">
-						<span aria-hidden="true" class="pt-0.5">{event.icon}</span>
-						<div class="flex-1">
-							<p class="text-ink">
-								<span class="font-medium">{event.label}</span>
-								{#if event.date}<span class="text-ink/60"> · {event.date}</span>{/if}
-								{#if event.place}<span class="text-ink/60"> · {event.place}</span>{/if}
-							</p>
-							{#if event.note}
-								<p class="text-xs whitespace-pre-line text-ink/55">{event.note}</p>
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-sage text-left text-xs font-medium tracking-wide text-ink/45">
+						<th class="py-1.5 pr-3 font-medium">Event</th>
+						<th class="py-1.5 pr-3 font-medium">Date</th>
+						<th class="py-1.5 pr-3 font-medium">Place</th>
+						{#if data.canEdit}<th class="py-1.5"></th>{/if}
+					</tr>
+				</thead>
+				<tbody>
+					{#each data.events as event (event.id)}
+						<tr class="border-b border-sage/40" class:bg-cream={editingId === event.id}>
+							<td class="py-2 pr-3">
+								<span aria-hidden="true">{event.icon}</span>
+								<span class="font-medium text-ink">{event.label}</span>
+							</td>
+							<td class="py-2 pr-3 text-ink/70">{event.date || '—'}</td>
+							<td class="py-2 pr-3 text-ink/70">{event.place || '—'}</td>
+							{#if data.canEdit}
+								<td class="py-2 text-right whitespace-nowrap">
+									<button
+										type="button"
+										onclick={() => startEdit(event.id)}
+										class="text-xs text-ink/40 hover:text-ink"
+									>
+										Edit
+									</button>
+									<form method="POST" action="?/deleteEvent" use:enhance class="inline">
+										<input type="hidden" name="eventId" value={event.id} />
+										<button type="submit" class="ml-2 text-xs text-ink/40 hover:text-red-600">
+											Remove
+										</button>
+									</form>
+								</td>
 							{/if}
-						</div>
-						{#if data.canEdit}
-							<a
-								href={resolve('/trees/[treeId]/persons/[personId]/events/[eventId]/edit', {
-									treeId: data.tree.id,
-									personId: person.id,
-									eventId: event.id
-								})}
-								class="text-xs text-ink/40 hover:text-ink"
-							>
-								Edit
-							</a>
-						{/if}
-					</li>
-				{/each}
-			</ul>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		{:else}
 			<p class="text-sm text-ink/55">No events recorded.</p>
+		{/if}
+
+		{#if data.canEdit}
+			<div class="mt-2 rounded-lg border border-sage bg-paper/60 p-4">
+				<div class="mb-3 flex items-center justify-between">
+					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">
+						{editing ? 'Edit event' : 'Add an event'}
+					</h3>
+					{#if editing}
+						<button type="button" onclick={cancelEdit} class="text-xs text-ink/40 hover:text-ink">
+							Cancel
+						</button>
+					{/if}
+				</div>
+
+				{#if form?.eventError}
+					<p class="mb-2 text-sm text-red-600">{form.eventError}</p>
+				{/if}
+
+				{#key editingId ? `edit:${editingId}` : `new:${formKey}`}
+					<form
+						method="POST"
+						action={editing ? '?/updateEvent' : '?/addEvent'}
+						use:enhance={() =>
+							async ({ update, result }) => {
+								await update({ reset: false });
+								if (result.type === 'success') {
+									editingId = null;
+									formKey += 1;
+								}
+							}}
+						class="flex flex-col gap-4"
+					>
+						{#if editing}
+							<input type="hidden" name="eventId" value={editing.id} />
+							<EventForm places={data.places} event={editing.initial} />
+						{:else}
+							<EventForm places={data.places} defaultPlace={data.defaultPlace} />
+						{/if}
+						<div>
+							<button
+								type="submit"
+								class="rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80"
+							>
+								{editing ? 'Save event' : 'Add event'}
+							</button>
+						</div>
+					</form>
+				{/key}
+			</div>
 		{/if}
 	</section>
 </div>

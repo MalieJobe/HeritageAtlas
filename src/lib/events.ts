@@ -1,13 +1,12 @@
 /**
- * Event types — the single shared definition of the `event_type` enum plus the
- * display metadata the rest of the app reads from. The DB enum
- * (migration 0012) and this list must stay in lockstep; `EVENT_TYPES` is ordered
- * the way we want types presented in pickers and legends.
+ * Event types — the single shared definition of the event types the app uses,
+ * plus the display metadata the rest of the app reads from.
  *
- * `locates` marks the types that place a person somewhere on the map timeline —
- * the position resolver (task 2.10) walks these to decide where a person "is" in
- * a given year. Non-locating types (e.g. occupation) are still timeline facts but
- * don't move the dot on their own.
+ * We deliberately track only the two *locating* facts that move a person on the
+ * map over time: birth and residence. Death isn't modelled — a person simply
+ * stays at their last residence — and marriage/work belong to the relationship
+ * data, not the map. The DB `event_type` enum (migration 0012) still has the
+ * older values, but the app only offers and resolves these two.
  */
 
 import type { Database } from '$lib/supabase/types';
@@ -22,35 +21,22 @@ export interface EventTypeMeta {
 	icon: string;
 	/** Whether this event type contributes to a person's location over time. */
 	locates: boolean;
-	/** The label comes from the event row's free-text `label` column. */
-	custom?: boolean;
 }
 
 export const EVENT_TYPES: EventTypeMeta[] = [
 	{ type: 'birth', label: 'Birth', icon: '👶', locates: true },
-	{ type: 'residence', label: 'Residence', icon: '🏠', locates: true },
-	{ type: 'occupation', label: 'Occupation', icon: '💼', locates: false },
-	{ type: 'marriage', label: 'Marriage', icon: '💍', locates: true },
-	{ type: 'death', label: 'Death', icon: '✝️', locates: true },
-	{ type: 'custom', label: 'Other', icon: '📌', locates: true, custom: true }
+	{ type: 'residence', label: 'Residence', icon: '🏠', locates: true }
 ];
 
 const BY_TYPE = new Map<EventType, EventTypeMeta>(EVENT_TYPES.map((meta) => [meta.type, meta]));
 
-/** Metadata for an event type; falls back to the 'custom' entry for anything unknown. */
+/** Metadata for an event type; a generic fallback for any legacy/unknown type. */
 export function eventTypeMeta(type: EventType): EventTypeMeta {
-	return BY_TYPE.get(type) ?? BY_TYPE.get('custom')!;
+	return BY_TYPE.get(type) ?? { type, label: 'Event', icon: '📍', locates: true };
 }
 
-/**
- * The name to show for an event: the row's free-text `label` for custom events
- * (falling back to "Other" when blank), otherwise the type's fixed label.
- */
+/** The name to show for an event: its free-text `label`, falling back to the type's name. */
 export function eventDisplayLabel(type: EventType, label?: string | null): string {
-	const meta = eventTypeMeta(type);
-	if (meta.custom) {
-		const trimmed = label?.trim();
-		return trimmed || meta.label;
-	}
-	return meta.label;
+	const trimmed = label?.trim();
+	return trimmed || eventTypeMeta(type).label;
 }

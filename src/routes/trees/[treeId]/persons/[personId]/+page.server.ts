@@ -1,8 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { personName } from '$lib/person';
 import { eventDisplayLabel, eventTypeMeta } from '$lib/events';
-import { formatFuzzyDate, fuzzyDateFromColumns } from '$lib/fuzzyDate';
+import { formatFuzzyDate, fuzzyDateFromColumns, fuzzyDateToParts } from '$lib/fuzzyDate';
 import { requireEditableTree } from '$lib/server/treeAccess';
+import { parseEventForm } from '$lib/server/eventForm';
+import { parentDefaultPlace } from '$lib/server/parentPlace';
+import type { EventFormInitial } from '$lib/components/EventForm.svelte';
+import type { PlaceSelection } from '$lib/place';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Canonical ordering for the symmetric partnership pair (partner_a < partner_b). */
@@ -111,33 +115,73 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.map((p) => ({ id: p.id, name: personName(p) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	// Events — life facts that drive the map timeline. Listed here chronologically.
+	// Events — the birth/residence facts that drive the map timeline. Shown as a
+	// table sorted by date; each row also carries the values the inline edit form
+	// needs (raw type/label, date parts, place selection).
 	const { data: eventRows } = await supabase
 		.from('events')
 		.select(
-			'id, type, label, note, event_date, event_date_end, event_qualifier, event_precision, place:places(name)'
+			'id, type, label, note, event_date, event_date_end, event_qualifier, event_precision, place:places(id, name, lat, lng)'
 		)
 		.eq('tree_id', treeId)
 		.eq('person_id', personId);
 
 	const events = (eventRows ?? [])
-		.map((row) => ({
-			id: row.id,
-			icon: eventTypeMeta(row.type).icon,
-			label: eventDisplayLabel(row.type, row.label),
-			date: formatFuzzyDate(fuzzyDateFromColumns(row, 'event')),
-			place: row.place?.name ?? null,
-			note: row.note,
-			// Lower-bound ISO date for ordering; undated events sort to the end.
-			sortKey: row.event_date ?? ''
-		}))
+		.map((row) => {
+			const place: PlaceSelection | null = row.place
+				? {
+						kind: 'existing',
+						id: row.place.id,
+						name: row.place.name,
+						lat: row.place.lat,
+						lng: row.place.lng
+					}
+				: null;
+			const initial: EventFormInitial = {
+				type: row.type,
+				label: row.label ?? '',
+				dateParts: fuzzyDateToParts(fuzzyDateFromColumns(row, 'event')),
+				place
+			};
+			return {
+				id: row.id,
+				icon: eventTypeMeta(row.type).icon,
+				label: eventDisplayLabel(row.type, row.label),
+				date: formatFuzzyDate(fuzzyDateFromColumns(row, 'event')),
+				place: row.place?.name ?? null,
+				initial,
+				// Lower-bound ISO date for ordering; undated events sort to the end.
+				sortKey: row.event_date ?? ''
+			};
+		})
 		.sort((a, b) => {
 			if (!a.sortKey) return b.sortKey ? 1 : 0;
 			if (!b.sortKey) return -1;
 			return a.sortKey.localeCompare(b.sortKey);
 		});
 
-	return { tree, person, photoUrl, canEdit, partners, parents, children, candidates, events };
+	// Places offered in the inline picker, plus a birthplace suggestion inherited
+	// from a parent (only meaningful when this person has none of their own yet).
+	const { data: placeRows } = await supabase
+		.from('places')
+		.select('*')
+		.eq('tree_id', treeId)
+		.order('name');
+	const defaultPlace = await parentDefaultPlace(supabase, treeId, personId);
+
+	return {
+		tree,
+		person,
+		photoUrl,
+		canEdit,
+		partners,
+		parents,
+		children,
+		candidates,
+		events,
+		places: placeRows ?? [],
+		defaultPlace
+	};
 };
 
 export const actions: Actions = {
@@ -255,6 +299,76 @@ export const actions: Actions = {
 			.eq('tree_id', params.treeId);
 		if (dbError) {
 			return fail(400, { relError: dbError.message });
+		}
+		return { ok: true };
+	},
+
+	addEvent: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		let columns;
+		try {
+			columns = await parseEventForm(supabase, params.treeId, formData);
+		} catch (e) {
+			return fail(400, {
+				eventError: e instanceof Error ? e.message : 'Could not save the event.'
+			});
+		}
+
+		const { error: dbError } = await supabase
+			.from('events')
+			.insert({ tree_id: params.treeId, person_id: params.personId, ...columns });
+		if (dbError) {
+			return fail(400, { eventError: dbError.message });
+		}
+		return { ok: true };
+	},
+
+	updateEvent: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const eventId = String(formData.get('eventId') ?? '');
+		if (!eventId) return fail(400, { eventError: 'Missing event.' });
+
+		let columns;
+		try {
+			columns = await parseEventForm(supabase, params.treeId, formData);
+		} catch (e) {
+			return fail(400, {
+				eventError: e instanceof Error ? e.message : 'Could not save the event.'
+			});
+		}
+
+		const { error: dbError } = await supabase
+			.from('events')
+			.update(columns)
+			.eq('id', eventId)
+			.eq('tree_id', params.treeId)
+			.eq('person_id', params.personId);
+		if (dbError) {
+			return fail(400, { eventError: dbError.message });
+		}
+		return { ok: true };
+	},
+
+	deleteEvent: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const eventId = String(formData.get('eventId') ?? '');
+		const { error: dbError } = await supabase
+			.from('events')
+			.delete()
+			.eq('id', eventId)
+			.eq('tree_id', params.treeId)
+			.eq('person_id', params.personId);
+		if (dbError) {
+			return fail(400, { eventError: dbError.message });
 		}
 		return { ok: true };
 	}
