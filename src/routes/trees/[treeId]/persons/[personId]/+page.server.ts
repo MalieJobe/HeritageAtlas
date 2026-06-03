@@ -1,17 +1,34 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { personName } from '$lib/person';
-import { eventDisplayLabel, eventTypeMeta } from '$lib/events';
+import { personInitials, personName } from '$lib/person';
+import { eventDisplayLabel, eventTypeMeta, type EventType } from '$lib/events';
 import { formatFuzzyDate, fuzzyDateFromColumns, fuzzyDateToParts } from '$lib/fuzzyDate';
 import { requireEditableTree } from '$lib/server/treeAccess';
 import { parseEventForm } from '$lib/server/eventForm';
-import { parentDefaultPlace } from '$lib/server/parentPlace';
+import { inheritedPlace, parentDefaultPlace } from '$lib/server/parentPlace';
 import type { EventFormInitial } from '$lib/components/EventForm.svelte';
 import type { PlaceSelection } from '$lib/place';
+import type { GraphData, GraphPerson, Sex } from '$lib/graph/types';
 import type { Actions, PageServerLoad } from './$types';
+
+const PHOTO_BUCKET = 'person-photos';
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 /** Canonical ordering for the symmetric partnership pair (partner_a < partner_b). */
 function orderedPair(a: string, b: string): [string, string] {
 	return a < b ? [a, b] : [b, a];
+}
+
+function photoPath(treeId: string, personId: string): string {
+	return `${treeId}/${personId}`;
+}
+
+function field(formData: FormData, name: string): string | null {
+	const value = String(formData.get(name) ?? '').trim();
+	return value === '' ? null : value;
+}
+
+function normalizeSex(value: string | null): Sex {
+	return value === 'male' || value === 'female' || value === 'other' ? value : null;
 }
 
 export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
@@ -24,9 +41,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.select('id, name')
 		.eq('id', treeId)
 		.maybeSingle();
-	if (!tree) {
-		error(404, 'Tree not found');
-	}
+	if (!tree) error(404, 'Tree not found');
 
 	const { data: person } = await supabase
 		.from('persons')
@@ -36,9 +51,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.eq('id', personId)
 		.eq('tree_id', treeId)
 		.maybeSingle();
-	if (!person) {
-		error(404, 'Person not found');
-	}
+	if (!person) error(404, 'Person not found');
 
 	const { data: membership } = await supabase
 		.from('tree_members')
@@ -48,62 +61,88 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.maybeSingle();
 	const canEdit = membership?.role === 'owner' || membership?.role === 'editor';
 
-	let photoUrl: string | null = null;
-	if (person.profile_photo_path) {
-		const { data: signed } = await supabase.storage
-			.from('person-photos')
-			.createSignedUrl(person.profile_photo_path, 3600);
-		photoUrl = signed?.signedUrl ?? null;
-	}
-
-	// All people in the tree (for relationship pickers + name lookups).
+	// Everyone in the tree, with the fields the relationship pickers and mini-graph
+	// avatars need.
 	const { data: everyone } = await supabase
 		.from('persons')
-		.select('id, given_names, surname, nickname')
+		.select('id, given_names, surname, nickname, sex, profile_photo_path')
 		.eq('tree_id', treeId);
 	const all = everyone ?? [];
-	const nameById = new Map(all.map((p) => [p.id, personName(p)]));
+	const personById = new Map(all.map((p) => [p.id, p]));
 
-	const { data: partnerRows } = await supabase
-		.from('partnerships')
-		.select('id, partner_a, partner_b, status')
-		.eq('tree_id', treeId)
-		.or(`partner_a.eq.${personId},partner_b.eq.${personId}`);
+	// All edges in the tree — small enough to fetch whole, and we need them to build
+	// the induced subgraph for the mini tree (not just edges touching this person).
+	const [{ data: allPartners }, { data: allLinks }] = await Promise.all([
+		supabase.from('partnerships').select('id, partner_a, partner_b, status').eq('tree_id', treeId),
+		supabase.from('parent_child_links').select('id, parent_id, child_id').eq('tree_id', treeId)
+	]);
+	const partnershipsAll = allPartners ?? [];
+	const linksAll = allLinks ?? [];
 
-	const { data: linkRows } = await supabase
-		.from('parent_child_links')
-		.select('id, parent_id, child_id')
-		.eq('tree_id', treeId)
-		.or(`parent_id.eq.${personId},child_id.eq.${personId}`);
+	const partnerRowsSafe = partnershipsAll.filter(
+		(p) => p.partner_a === personId || p.partner_b === personId
+	);
+	const linkRowsSafe = linksAll.filter((r) => r.parent_id === personId || r.child_id === personId);
 
-	const partnerRowsSafe = partnerRows ?? [];
-	const linkRowsSafe = linkRows ?? [];
+	const parentLinks = linkRowsSafe.filter((r) => r.child_id === personId);
+	const childLinks = linkRowsSafe.filter((r) => r.parent_id === personId);
+	const parentIds = parentLinks.map((r) => r.parent_id);
 
-	const partners = partnerRowsSafe.map((row) => {
-		const otherId = row.partner_a === personId ? row.partner_b : row.partner_a;
+	// Siblings share at least one parent (and aren't this person).
+	const siblingIds =
+		parentIds.length > 0
+			? [
+					...new Set(linksAll.filter((l) => parentIds.includes(l.parent_id)).map((l) => l.child_id))
+				].filter((id) => id !== personId)
+			: [];
+
+	// Batch-sign the profile photos we'll actually show (this person + the people in
+	// the mini-graph). External URLs pass through; bucket paths sign in one trip.
+	const relatedIds = new Set<string>([
+		personId,
+		...partnerRowsSafe.map((r) => (r.partner_a === personId ? r.partner_b : r.partner_a)),
+		...parentIds,
+		...childLinks.map((r) => r.child_id),
+		...siblingIds
+	]);
+	const isExternal = (p: string | null | undefined) => !!p && /^https?:\/\//.test(p);
+	const paths: string[] = [];
+	for (const id of relatedIds) {
+		const path =
+			id === personId ? person.profile_photo_path : personById.get(id)?.profile_photo_path;
+		if (path && !isExternal(path)) paths.push(path);
+	}
+	const signed = new Map<string, string>();
+	if (paths.length > 0) {
+		const { data: urls } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 3600);
+		for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+	}
+	const resolvePhoto = (path: string | null | undefined): string | null =>
+		path ? (isExternal(path) ? path : (signed.get(path) ?? null)) : null;
+
+	// A mini-graph node for a related person.
+	const node = (id: string) => {
+		const p = personById.get(id);
+		if (!p) return null;
 		return {
-			partnershipId: row.id,
-			id: otherId,
-			name: nameById.get(otherId) ?? 'Unnamed person',
-			status: row.status
+			id,
+			name: personName(p),
+			initials: personInitials(p),
+			sex: normalizeSex(p.sex),
+			photoUrl: resolvePhoto(p.profile_photo_path)
 		};
-	});
-	const parents = linkRowsSafe
-		.filter((r) => r.child_id === personId)
-		.map((r) => ({
-			linkId: r.id,
-			id: r.parent_id,
-			name: nameById.get(r.parent_id) ?? 'Unnamed person'
-		}));
-	const children = linkRowsSafe
-		.filter((r) => r.parent_id === personId)
-		.map((r) => ({
-			linkId: r.id,
-			id: r.child_id,
-			name: nameById.get(r.child_id) ?? 'Unnamed person'
-		}));
+	};
+	const nodes = (ids: string[]) => ids.map(node).filter((n): n is NonNullable<typeof n> => !!n);
 
-	// People not yet connected to this person, offered in the pickers.
+	const parents = parentLinks.map((r) => ({ ...node(r.parent_id)!, linkId: r.id })).filter(Boolean);
+	const children = childLinks.map((r) => ({ ...node(r.child_id)!, linkId: r.id })).filter(Boolean);
+	const partners = partnerRowsSafe.map((r) => {
+		const otherId = r.partner_a === personId ? r.partner_b : r.partner_a;
+		return { ...node(otherId)!, partnershipId: r.id, status: r.status };
+	});
+	const siblings = nodes(siblingIds);
+
+	// People not yet directly connected, offered in the relationship picker.
 	const connectedIds = new Set<string>([
 		personId,
 		...partners.map((p) => p.id),
@@ -115,9 +154,8 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.map((p) => ({ id: p.id, name: personName(p) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	// Events — the birth/residence facts that drive the map timeline. Shown as a
-	// table sorted by date; each row also carries the values the inline edit form
-	// needs (raw type/label, date parts, place selection).
+	// Events — birth/residence/death facts, shown as a table sorted by date; each
+	// row also carries what the inline edit form needs.
 	const { data: eventRows } = await supabase
 		.from('events')
 		.select(
@@ -144,12 +182,12 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 			};
 			return {
 				id: row.id,
+				type: row.type,
 				icon: eventTypeMeta(row.type).icon,
 				label: eventDisplayLabel(row.type, row.label),
 				date: formatFuzzyDate(fuzzyDateFromColumns(row, 'event')),
 				place: row.place?.name ?? null,
 				initial,
-				// Lower-bound ISO date for ordering; undated events sort to the end.
 				sortKey: row.event_date ?? ''
 			};
 		})
@@ -159,31 +197,184 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 			return a.sortKey.localeCompare(b.sortKey);
 		});
 
-	// Places offered in the inline picker, plus a birthplace suggestion inherited
-	// from a parent (only meaningful when this person has none of their own yet).
+	// Birth is expected on everyone — default a new event to it when missing.
+	const hasBirth = events.some((e) => e.type === 'birth');
+	const defaultType: EventType = hasBirth ? 'residence' : 'birth';
+
 	const { data: placeRows } = await supabase
 		.from('places')
 		.select('*')
 		.eq('tree_id', treeId)
 		.order('name');
-	const defaultPlace = await parentDefaultPlace(supabase, treeId, personId);
+	// Pre-fill the place: a first birth inherits the parent's location; any later
+	// event (a new residence, or a death) starts from this person's own last known
+	// place (their most recent residence/birth) to save re-typing it.
+	const defaultPlace = hasBirth
+		? await inheritedPlace(supabase, treeId, [personId])
+		: await parentDefaultPlace(supabase, treeId, personId);
+
+	// Mini family tree: this person + direct relatives, laid out with the same
+	// engine as the full tree (just fewer people). Persons need full node fields,
+	// edges are the induced subgraph among the subset.
+	const subsetIds = new Set<string>([
+		personId,
+		...parentIds,
+		...partners.map((p) => p.id),
+		...children.map((c) => c.id),
+		...siblingIds
+	]);
+	const { data: yearEvents } = await supabase
+		.from('events')
+		.select('person_id, type, event_date')
+		.eq('tree_id', treeId)
+		.in('type', ['birth', 'death'])
+		.in('person_id', [...subsetIds]);
+	const yearOf = (iso: string | null) => {
+		const y = iso ? Number.parseInt(iso.slice(0, 4), 10) : NaN;
+		return Number.isFinite(y) ? y : null;
+	};
+	const birthYears = new Map<string, number>();
+	const deathYears = new Map<string, number>();
+	for (const ev of yearEvents ?? []) {
+		const y = yearOf(ev.event_date);
+		if (y == null) continue;
+		const target = ev.type === 'death' ? deathYears : ev.type === 'birth' ? birthYears : null;
+		if (target && !target.has(ev.person_id)) target.set(ev.person_id, y);
+	}
+	const graphPerson = (id: string): GraphPerson | null => {
+		const p = personById.get(id);
+		if (!p) return null;
+		return {
+			id,
+			name: personName(p),
+			surname: p.surname,
+			initials: personInitials(p),
+			sex: normalizeSex(p.sex),
+			photoUrl: resolvePhoto(p.profile_photo_path),
+			birthYear: birthYears.get(id) ?? null,
+			deathYear: deathYears.get(id) ?? null
+		};
+	};
+	const miniGraph: GraphData = {
+		persons: [...subsetIds].map(graphPerson).filter((p): p is GraphPerson => !!p),
+		partnerships: partnershipsAll
+			.filter((p) => subsetIds.has(p.partner_a) && subsetIds.has(p.partner_b))
+			.map((p) => ({
+				id: p.id,
+				a: p.partner_a,
+				b: p.partner_b,
+				status: p.status === 'former' ? ('former' as const) : ('current' as const)
+			})),
+		parentLinks: linksAll
+			.filter((l) => subsetIds.has(l.parent_id) && subsetIds.has(l.child_id))
+			.map((l) => ({ id: l.id, parent: l.parent_id, child: l.child_id }))
+	};
 
 	return {
 		tree,
 		person,
-		photoUrl,
+		photoUrl: resolvePhoto(person.profile_photo_path),
 		canEdit,
-		partners,
 		parents,
+		partners,
 		children,
+		siblings,
 		candidates,
 		events,
+		hasBirth,
+		defaultType,
 		places: placeRows ?? [],
-		defaultPlace
+		defaultPlace,
+		miniGraph,
+		centerId: personId
 	};
 };
 
 export const actions: Actions = {
+	savePerson: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const values = {
+			given_names: field(formData, 'given_names'),
+			surname: field(formData, 'surname'),
+			birth_surname: field(formData, 'birth_surname'),
+			nickname: field(formData, 'nickname'),
+			sex: field(formData, 'sex'),
+			notes: field(formData, 'notes')
+		};
+		if (!values.given_names && !values.surname && !values.nickname) {
+			return fail(400, { personError: 'Enter at least a given name, surname, or nickname.' });
+		}
+
+		const { error: dbError } = await supabase
+			.from('persons')
+			.update(values)
+			.eq('id', params.personId)
+			.eq('tree_id', params.treeId);
+		if (dbError) return fail(400, { personError: dbError.message });
+		return { personSaved: true };
+	},
+
+	uploadPhoto: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const file = formData.get('photo');
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { photoError: 'Choose an image to upload.' });
+		}
+		if (!file.type.startsWith('image/'))
+			return fail(400, { photoError: 'That file is not an image.' });
+		if (file.size > MAX_PHOTO_BYTES)
+			return fail(400, { photoError: 'Image must be 5 MB or smaller.' });
+
+		const path = photoPath(params.treeId, params.personId);
+		const { error: upErr } = await supabase.storage
+			.from(PHOTO_BUCKET)
+			.upload(path, file, { upsert: true, contentType: file.type });
+		if (upErr) return fail(400, { photoError: upErr.message });
+
+		const { error: dbErr } = await supabase
+			.from('persons')
+			.update({ profile_photo_path: path })
+			.eq('id', params.personId)
+			.eq('tree_id', params.treeId);
+		if (dbErr) return fail(400, { photoError: dbErr.message });
+		return { photoUpdated: true };
+	},
+
+	removePhoto: async ({ params, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const path = photoPath(params.treeId, params.personId);
+		await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+		const { error: dbErr } = await supabase
+			.from('persons')
+			.update({ profile_photo_path: null })
+			.eq('id', params.personId)
+			.eq('tree_id', params.treeId);
+		if (dbErr) return fail(400, { photoError: dbErr.message });
+		return { photoUpdated: true };
+	},
+
+	deletePerson: async ({ params, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		await supabase.storage.from(PHOTO_BUCKET).remove([photoPath(params.treeId, params.personId)]);
+		const { error: dbError } = await supabase
+			.from('persons')
+			.delete()
+			.eq('id', params.personId)
+			.eq('tree_id', params.treeId);
+		if (dbError) return fail(400, { personError: dbError.message });
+		redirect(303, `/trees/${params.treeId}`);
+	},
+
 	addPartner: async ({ params, request, locals: { supabase, user } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
@@ -202,9 +393,7 @@ export const actions: Actions = {
 			partner_b,
 			status: status === 'former' ? 'former' : 'current'
 		});
-		if (dbError) {
-			return fail(400, { relError: dbError.message });
-		}
+		if (dbError) return fail(400, { relError: dbError.message });
 		return { ok: true };
 	},
 
@@ -262,9 +451,7 @@ export const actions: Actions = {
 			.update({ status })
 			.eq('id', partnershipId)
 			.eq('tree_id', params.treeId);
-		if (dbError) {
-			return fail(400, { relError: dbError.message });
-		}
+		if (dbError) return fail(400, { relError: dbError.message });
 		return { ok: true };
 	},
 
@@ -279,9 +466,7 @@ export const actions: Actions = {
 			.delete()
 			.eq('id', partnershipId)
 			.eq('tree_id', params.treeId);
-		if (dbError) {
-			return fail(400, { relError: dbError.message });
-		}
+		if (dbError) return fail(400, { relError: dbError.message });
 		return { ok: true };
 	},
 
@@ -296,9 +481,7 @@ export const actions: Actions = {
 			.delete()
 			.eq('id', linkId)
 			.eq('tree_id', params.treeId);
-		if (dbError) {
-			return fail(400, { relError: dbError.message });
-		}
+		if (dbError) return fail(400, { relError: dbError.message });
 		return { ok: true };
 	},
 
@@ -319,9 +502,7 @@ export const actions: Actions = {
 		const { error: dbError } = await supabase
 			.from('events')
 			.insert({ tree_id: params.treeId, person_id: params.personId, ...columns });
-		if (dbError) {
-			return fail(400, { eventError: dbError.message });
-		}
+		if (dbError) return fail(400, { eventError: dbError.message });
 		return { ok: true };
 	},
 
@@ -348,9 +529,7 @@ export const actions: Actions = {
 			.eq('id', eventId)
 			.eq('tree_id', params.treeId)
 			.eq('person_id', params.personId);
-		if (dbError) {
-			return fail(400, { eventError: dbError.message });
-		}
+		if (dbError) return fail(400, { eventError: dbError.message });
 		return { ok: true };
 	},
 
@@ -366,9 +545,7 @@ export const actions: Actions = {
 			.eq('id', eventId)
 			.eq('tree_id', params.treeId)
 			.eq('person_id', params.personId);
-		if (dbError) {
-			return fail(400, { eventError: dbError.message });
-		}
+		if (dbError) return fail(400, { eventError: dbError.message });
 		return { ok: true };
 	}
 };

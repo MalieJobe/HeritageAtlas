@@ -2,11 +2,11 @@
  * Event types — the single shared definition of the event types the app uses,
  * plus the display metadata the rest of the app reads from.
  *
- * We deliberately track only the two *locating* facts that move a person on the
- * map over time: birth and residence. Death isn't modelled — a person simply
- * stays at their last residence — and marriage/work belong to the relationship
- * data, not the map. The DB `event_type` enum (migration 0012) still has the
- * older values, but the app only offers and resolves these two.
+ * We track three life facts: birth (expected on everyone), residence, and death
+ * (optional). All three can carry a place and so can position a person on the map
+ * over time; marriage/work belong to the relationship data, not the map. The DB
+ * `event_type` enum (migration 0012) still has other legacy values, but the app
+ * only offers and resolves these three.
  */
 
 import type { Database } from '$lib/supabase/types';
@@ -25,7 +25,8 @@ export interface EventTypeMeta {
 
 export const EVENT_TYPES: EventTypeMeta[] = [
 	{ type: 'birth', label: 'Birth', icon: '👶', locates: true },
-	{ type: 'residence', label: 'Residence', icon: '🏠', locates: true }
+	{ type: 'residence', label: 'Residence', icon: '🏠', locates: true },
+	{ type: 'death', label: 'Death', icon: '✝️', locates: true }
 ];
 
 const BY_TYPE = new Map<EventType, EventTypeMeta>(EVENT_TYPES.map((meta) => [meta.type, meta]));

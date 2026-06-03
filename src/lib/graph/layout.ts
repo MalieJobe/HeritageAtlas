@@ -167,3 +167,71 @@ export async function layoutGraph(data: GraphData): Promise<LayoutResult> {
 		height: laid.height ?? 0
 	};
 }
+
+/** Drawable connector geometry for one family unit. */
+export type Connector = {
+	id: string;
+	partnerLine?: { x1: number; x2: number; y: number; status?: 'current' | 'former' };
+	junction?: { x: number; y: number };
+	childPaths: { id: string; d: string }[];
+};
+
+/** Orthogonal connector from a junction down to a child, with rounded corners. */
+function childPath(jx: number, jy: number, busY: number, cx: number, cy: number): string {
+	if (Math.abs(cx - jx) < 0.5) return `M ${jx} ${jy} L ${cx} ${cy}`;
+	const dir = cx > jx ? 1 : -1;
+	const r = Math.max(
+		0,
+		Math.min(22, Math.abs(cx - jx) / 2, Math.abs(busY - jy) / 2, Math.abs(cy - busY) / 2)
+	);
+	return `M ${jx} ${jy} V ${busY - r} Q ${jx} ${busY} ${jx + dir * r} ${busY} H ${cx - dir * r} Q ${cx} ${busY} ${cx} ${busY + r} V ${cy}`;
+}
+
+/**
+ * Connector geometry from node positions: partnerships are a horizontal line
+ * between the two cards with a centre junction; children curve down from that
+ * junction (or, for a lone parent, from the bottom of their card). Shared by the
+ * full graph and the person-page mini tree.
+ */
+export function buildConnectors(result: LayoutResult): Connector[] {
+	const nodes = result.nodes;
+	const out: Connector[] = [];
+	for (const fam of result.families) {
+		const parents = fam.parents.map((id) => nodes.get(id)).filter((n): n is LayoutNode => !!n);
+		if (parents.length === 0) continue;
+
+		let jx: number;
+		let jy: number;
+		let partnerLine: Connector['partnerLine'];
+		if (parents.length === 2) {
+			const left = parents[0].x <= parents[1].x ? parents[0] : parents[1];
+			const right = parents[0].x <= parents[1].x ? parents[1] : parents[0];
+			const y = left.y + PARTNER_ANCHOR_Y;
+			partnerLine = { x1: left.x + NODE_WIDTH, x2: right.x, y, status: fam.status };
+			jx = (left.x + NODE_WIDTH + right.x) / 2;
+			jy = y;
+		} else {
+			jx = parents[0].x + NODE_WIDTH / 2;
+			jy = parents[0].y + PARENT_BOTTOM_Y;
+		}
+
+		const childNodes = fam.children.map((id) => nodes.get(id)).filter((n): n is LayoutNode => !!n);
+		let childPaths: Connector['childPaths'] = [];
+		if (childNodes.length > 0) {
+			const minChildTop = Math.min(...childNodes.map((c) => c.y + CHILD_TOP_Y));
+			const busY = (jy + minChildTop) / 2;
+			childPaths = childNodes.map((c) => ({
+				id: c.id,
+				d: childPath(jx, jy, busY, c.x + NODE_WIDTH / 2, c.y + CHILD_TOP_Y)
+			}));
+		}
+
+		out.push({
+			id: fam.id,
+			partnerLine,
+			junction: parents.length === 2 ? { x: jx, y: jy } : undefined,
+			childPaths
+		});
+	}
+	return out;
+}

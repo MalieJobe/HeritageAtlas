@@ -22,19 +22,23 @@
 	let {
 		places = [],
 		event,
-		defaultPlace = null
+		defaultPlace = null,
+		defaultType = 'residence'
 	}: {
 		places?: Place[];
 		event?: EventFormInitial;
 		/** Pre-selected place for a blank add form (e.g. inherited from a parent). Ignored when editing. */
 		defaultPlace?: PlaceSelection | null;
+		/** Type pre-selected on a blank add form. */
+		defaultType?: EventType;
 	} = $props();
 
 	// Seeded once from the edit prop (it doesn't change after mount). A blank add
 	// form falls back to defaultPlace so a child's birthplace can pre-fill.
 	const init = untrack(() => event);
 	const seedPlace = untrack(() => defaultPlace);
-	let type = $state(init?.type ?? 'residence');
+	const seedType = untrack(() => defaultType);
+	let type = $state(init?.type ?? seedType);
 	let placeSelection = $state<PlaceSelection | null>(init?.place ?? seedPlace);
 
 	const inputClass =
