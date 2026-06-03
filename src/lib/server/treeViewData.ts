@@ -169,6 +169,8 @@ export async function loadTreeViewData(
 				initials: personInitials(p),
 				sex: normalizeSex(p.sex),
 				photoUrl: resolvePhoto(p.profile_photo_path),
+				birthYear: birthYears.get(p.id) ?? null,
+				deathYear: deathYears.get(p.id) ?? null,
 				events
 			};
 		})

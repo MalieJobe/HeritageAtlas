@@ -27,6 +27,9 @@ export type MapPerson = {
 	initials: string;
 	sex: Sex;
 	photoUrl: string | null;
+	/** Birth/death years, used to decide who is "alive" at the timeline year. */
+	birthYear: number | null;
+	deathYear: number | null;
 	events: LocatingEvent[];
 };
 
