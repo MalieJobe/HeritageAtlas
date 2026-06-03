@@ -14,3 +14,6 @@ bun.lockb
 
 # Generated (kept verbatim from `pnpm gen:types`)
 src/lib/supabase/types.ts
+
+# Playwright MCP (test scratch)
+.playwright-mcp/
