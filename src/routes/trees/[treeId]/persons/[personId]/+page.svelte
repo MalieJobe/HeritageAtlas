@@ -212,4 +212,56 @@
 			</div>
 		{/if}
 	</section>
+
+	<!-- Events -->
+	<section class="flex flex-col gap-3 border-t border-sage pt-6">
+		<div class="flex items-center justify-between">
+			<h2 class="text-sm font-medium text-ink/80">Events</h2>
+			{#if data.canEdit}
+				<a
+					href={resolve('/trees/[treeId]/persons/[personId]/events/new', {
+						treeId: data.tree.id,
+						personId: person.id
+					})}
+					class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
+				>
+					Add event
+				</a>
+			{/if}
+		</div>
+
+		{#if data.events.length > 0}
+			<ul class="flex flex-col gap-2 text-sm">
+				{#each data.events as event (event.id)}
+					<li class="flex items-start gap-3">
+						<span aria-hidden="true" class="pt-0.5">{event.icon}</span>
+						<div class="flex-1">
+							<p class="text-ink">
+								<span class="font-medium">{event.label}</span>
+								{#if event.date}<span class="text-ink/60"> · {event.date}</span>{/if}
+								{#if event.place}<span class="text-ink/60"> · {event.place}</span>{/if}
+							</p>
+							{#if event.note}
+								<p class="text-xs whitespace-pre-line text-ink/55">{event.note}</p>
+							{/if}
+						</div>
+						{#if data.canEdit}
+							<a
+								href={resolve('/trees/[treeId]/persons/[personId]/events/[eventId]/edit', {
+									treeId: data.tree.id,
+									personId: person.id,
+									eventId: event.id
+								})}
+								class="text-xs text-ink/40 hover:text-ink"
+							>
+								Edit
+							</a>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="text-sm text-ink/55">No events recorded.</p>
+		{/if}
+	</section>
 </div>

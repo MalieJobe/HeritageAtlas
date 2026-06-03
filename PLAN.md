@@ -102,8 +102,12 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Events UI
 
-- [ ] **2.7 Add/edit event on person** — form with type, fuzzy date, place picker, note.
-- [ ] **2.8 Events list on person detail** — chronological list with place + date.
+- [x] **2.7 Add/edit event on person** — new/edit/delete routes with a shared `EventForm`
+      (type, `FuzzyDateInput`, `PlacePicker`, note). Server `parseEventForm` folds the date parts
+      into the fuzzy-date columns and resolves the place via `findOrCreatePlace`. `fuzzyDate.ts`
+      gained `fuzzyDateFromParts`/`fuzzyDateToParts` for the year/month/day input ↔ storage bridge.
+- [x] **2.8 Events list on person detail** — chronological section (icon · label · fuzzy date ·
+      place), ordered by the lower-bound date with undated events last; add/edit entry points.
 
 ### Map view
 

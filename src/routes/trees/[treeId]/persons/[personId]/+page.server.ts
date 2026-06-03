@@ -1,5 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { personName } from '$lib/person';
+import { eventDisplayLabel, eventTypeMeta } from '$lib/events';
+import { formatFuzzyDate, fuzzyDateFromColumns } from '$lib/fuzzyDate';
 import { requireEditableTree } from '$lib/server/treeAccess';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -109,7 +111,33 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.map((p) => ({ id: p.id, name: personName(p) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	return { tree, person, photoUrl, canEdit, partners, parents, children, candidates };
+	// Events — life facts that drive the map timeline. Listed here chronologically.
+	const { data: eventRows } = await supabase
+		.from('events')
+		.select(
+			'id, type, label, note, event_date, event_date_end, event_qualifier, event_precision, place:places(name)'
+		)
+		.eq('tree_id', treeId)
+		.eq('person_id', personId);
+
+	const events = (eventRows ?? [])
+		.map((row) => ({
+			id: row.id,
+			icon: eventTypeMeta(row.type).icon,
+			label: eventDisplayLabel(row.type, row.label),
+			date: formatFuzzyDate(fuzzyDateFromColumns(row, 'event')),
+			place: row.place?.name ?? null,
+			note: row.note,
+			// Lower-bound ISO date for ordering; undated events sort to the end.
+			sortKey: row.event_date ?? ''
+		}))
+		.sort((a, b) => {
+			if (!a.sortKey) return b.sortKey ? 1 : 0;
+			if (!b.sortKey) return -1;
+			return a.sortKey.localeCompare(b.sortKey);
+		});
+
+	return { tree, person, photoUrl, canEdit, partners, parents, children, candidates, events };
 };
 
 export const actions: Actions = {
