@@ -25,6 +25,12 @@
 				</a>
 			{/if}
 			<a
+				href={resolve('/trees/[treeId]/map', { treeId: data.tree.id })}
+				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
+			>
+				Map
+			</a>
+			<a
 				href={resolve('/trees/[treeId]/settings', { treeId: data.tree.id })}
 				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
 			>

@@ -111,10 +111,17 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 
 ### Map view
 
-- [ ] **2.9 MapLibre base map** — modern street basemap, pan/zoom, in a Svelte component.
-- [ ] **2.10 Position resolver** — given a year, compute each person's place (most recent event ≤ year).
-- [ ] **2.11 Dots layer** — render one dot per located person; photo/initials + surname-colored border.
-- [ ] **2.12 Dot detail / selection** — clicking a dot selects the person (shared selection state).
+- [x] **2.9 MapLibre base map** — `MapView.svelte`: OSM raster basemap (reuses `src/lib/map/style.ts`),
+      pan/zoom + navigation control, client-only dynamic MapLibre import. Fits the viewport to the dots.
+- [x] **2.10 Position resolver** — `src/lib/map/positionResolver.ts`: `resolvePositions(persons, year)` →
+      each person at the place of their most recent locating event with year ≤ target (people with no
+      event yet are omitted). Loader groups located events per person, ascending, with a same-year
+      type tiebreak (birth→death). `src/lib/map/types.ts` holds the shared shapes.
+- [x] **2.11 Dots layer** — one MapLibre marker per located person: avatar (photo/initials) with a
+      surname-coloured ring (`surnameColor`), reconciled in place so a year scrub moves dots.
+- [x] **2.12 Dot detail / selection** — `selectedId` state shared into `MapView` (so other panes can
+      highlight later); clicking a dot selects + opens a detail card (event icon · place · year ·
+      open-profile link), clicking the empty map clears it.
 
 ### Split view + timeline
 
