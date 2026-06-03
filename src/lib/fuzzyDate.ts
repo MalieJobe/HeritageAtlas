@@ -102,3 +102,83 @@ export function formatFuzzyDate(fd: FuzzyDate | null | undefined): string {
 	}
 	return `${QUALIFIER_PREFIX[date.qualifier]}${point}`;
 }
+
+/**
+ * Year/month/day form fields, the shape the FuzzyDateInput works in. Precision is
+ * inferred from which parts are present (day → 'day', month → 'month', else
+ * 'year'), so the UI never has to ask for it separately. `end*` only matter when
+ * the qualifier is 'between'.
+ */
+export interface FuzzyDateParts {
+	year: number | null;
+	month: number | null; // 1–12
+	day: number | null; // 1–31
+	qualifier: DateQualifier | null;
+	endYear: number | null;
+	endMonth: number | null;
+	endDay: number | null;
+}
+
+export const EMPTY_FUZZY_DATE_PARTS: FuzzyDateParts = {
+	year: null,
+	month: null,
+	day: null,
+	qualifier: null,
+	endYear: null,
+	endMonth: null,
+	endDay: null
+};
+
+function precisionFor(month: number | null, day: number | null): DatePrecision {
+	if (day) return 'day';
+	if (month) return 'month';
+	return 'year';
+}
+
+/** Build an ISO date string from parts, defaulting absent month/day to 01. */
+function isoFrom(year: number, month: number | null, day: number | null): string {
+	const mm = String(month ?? 1).padStart(2, '0');
+	const dd = String(day ?? 1).padStart(2, '0');
+	return `${year}-${mm}-${dd}`;
+}
+
+/** Turn input-form parts into the stored FuzzyDate shape (date + precision + …). */
+export function fuzzyDateFromParts(parts: FuzzyDateParts): FuzzyDate {
+	if (!parts.year) {
+		return { date: null, dateEnd: null, qualifier: null, precision: null };
+	}
+	const qualifier = parts.qualifier ?? 'exact';
+	const precision = precisionFor(parts.month, parts.day);
+	const date = isoFrom(parts.year, parts.month, parts.day);
+	const dateEnd =
+		qualifier === 'between' && parts.endYear
+			? isoFrom(parts.endYear, parts.endMonth, parts.endDay)
+			: null;
+	return { date, dateEnd, qualifier, precision };
+}
+
+/** Split a stored FuzzyDate back into input-form parts (for edit prefills). */
+export function fuzzyDateToParts(fd: FuzzyDate | null | undefined): FuzzyDateParts {
+	if (isEmptyFuzzyDate(fd) || !fd?.date) return { ...EMPTY_FUZZY_DATE_PARTS };
+
+	const split = (iso: string, precision: DatePrecision | null) => {
+		const [year, month, day] = iso.split('-').map((p) => Number.parseInt(p, 10));
+		return {
+			year: year || null,
+			month: precision === 'year' ? null : month || null,
+			day: precision === 'year' || precision === 'month' ? null : day || null
+		};
+	};
+
+	const start = split(fd.date, fd.precision);
+	const end = fd.dateEnd ? split(fd.dateEnd, fd.precision) : { year: null, month: null, day: null };
+	return {
+		year: start.year,
+		month: start.month,
+		day: start.day,
+		qualifier: fd.qualifier,
+		endYear: end.year,
+		endMonth: end.month,
+		endDay: end.day
+	};
+}
