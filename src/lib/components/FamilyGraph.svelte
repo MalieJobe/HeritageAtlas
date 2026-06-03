@@ -6,7 +6,6 @@
 	import {
 		layoutGraph,
 		NODE_WIDTH,
-		NODE_HEIGHT,
 		PARTNER_ANCHOR_Y,
 		CHILD_TOP_Y,
 		PARENT_BOTTOM_Y,
@@ -32,11 +31,6 @@
 	let selected = $derived<GraphPerson | null>(
 		selectedId ? (personById.get(selectedId) ?? null) : null
 	);
-
-	// Far enough out that detail is pointless, fall back to plain blocks to keep
-	// very large trees light. Threshold-derived, so nodes only re-render when
-	// crossing it — not on every zoom step.
-	let lod = $derived(scale < 0.22);
 
 	const MIN_SCALE = 0.12;
 	const MAX_SCALE = 2.5;
@@ -265,32 +259,18 @@
 				{/each}
 
 				<!-- Junction dots at the centre of each partnership line. -->
-				{#if !lod}
-					{#each connectors as c (c.id)}
-						{#if c.junction}
-							<circle cx={c.junction.x} cy={c.junction.y} r="4" fill="#D9D9D9" />
-						{/if}
-					{/each}
-				{/if}
+				{#each connectors as c (c.id)}
+					{#if c.junction}
+						<circle cx={c.junction.x} cy={c.junction.y} r="4" fill="#D9D9D9" />
+					{/if}
+				{/each}
 
 				<!-- Person nodes. -->
 				{#each graph.persons as person (person.id)}
 					{@const pos = result.nodes.get(person.id)}
 					{#if pos}
 						<g transform="translate({pos.x},{pos.y})">
-							{#if lod}
-								<rect
-									y="108"
-									width={NODE_WIDTH}
-									height={NODE_HEIGHT - 108}
-									rx="12"
-									fill="#F6F3DB"
-									stroke="#0D0F0B"
-									stroke-opacity="0.12"
-								/>
-							{:else}
-								<PersonNode {person} selected={person.id === selectedId} onselect={handleSelect} />
-							{/if}
+							<PersonNode {person} selected={person.id === selectedId} onselect={handleSelect} />
 						</g>
 					{/if}
 				{/each}

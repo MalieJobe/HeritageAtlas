@@ -3,6 +3,19 @@
 	import type { User } from '@supabase/supabase-js';
 
 	let { user = null }: { user?: User | null } = $props();
+
+	let menuOpen = $state(false);
+	let menuEl = $state<HTMLDivElement>();
+
+	// Close the account menu on any click outside it (listener only attached while open).
+	$effect(() => {
+		if (!menuOpen) return;
+		const onDocPointerDown = (e: PointerEvent) => {
+			if (menuEl && !menuEl.contains(e.target as Node)) menuOpen = false;
+		};
+		document.addEventListener('pointerdown', onDocPointerDown);
+		return () => document.removeEventListener('pointerdown', onDocPointerDown);
+	});
 </script>
 
 <header class="sticky top-0 z-10 border-b border-sage bg-paper/80 backdrop-blur">
@@ -16,17 +29,50 @@
 		<nav class="flex items-center gap-3 text-sm">
 			{#if user}
 				<a href={resolve('/trees')} class="font-medium text-ink/70 hover:text-ink"> Trees </a>
-				<a href={resolve('/account')} class="text-ink/70 hover:text-ink">
-					{user.email}
-				</a>
-				<form method="POST" action={resolve('/auth/logout')}>
+				<div class="relative" bind:this={menuEl}>
 					<button
-						type="submit"
-						class="rounded-md border border-sage px-3 py-1 font-medium text-ink/80 hover:bg-cream"
+						type="button"
+						onclick={() => (menuOpen = !menuOpen)}
+						aria-haspopup="menu"
+						aria-expanded={menuOpen}
+						class="flex items-center gap-1 rounded-md px-2 py-1 text-ink/70 hover:bg-cream hover:text-ink"
 					>
-						Sign out
+						{user.email}
+						<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+							<path
+								d="M3 4.5L6 7.5L9 4.5"
+								stroke="currentColor"
+								stroke-width="1.3"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
 					</button>
-				</form>
+					{#if menuOpen}
+						<div
+							role="menu"
+							class="absolute right-0 mt-1 w-40 overflow-hidden rounded-md border border-sage bg-paper shadow-md"
+						>
+							<a
+								href={resolve('/account')}
+								role="menuitem"
+								onclick={() => (menuOpen = false)}
+								class="block px-3 py-2 text-ink/80 hover:bg-cream"
+							>
+								Account
+							</a>
+							<form method="POST" action={resolve('/auth/logout')} class="border-t border-sage/60">
+								<button
+									type="submit"
+									role="menuitem"
+									class="block w-full px-3 py-2 text-left text-ink/80 hover:bg-cream"
+								>
+									Sign out
+								</button>
+							</form>
+						</div>
+					{/if}
+				</div>
 			{:else}
 				<a
 					href={resolve('/auth/login')}
