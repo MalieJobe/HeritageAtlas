@@ -56,7 +56,7 @@
 			<button
 				type="button"
 				onclick={() => (lightboxIndex = i)}
-				class="block h-full w-full"
+				class="block h-full w-full cursor-zoom-in"
 				aria-label="Open photo"
 			>
 				<img src={photo.url} alt="" class="h-full w-full object-cover" draggable="false" />
@@ -67,7 +67,7 @@
 					<button
 						type="submit"
 						aria-label="Delete photo"
-						class="grid h-5 w-5 place-items-center rounded-full bg-ink/70 text-xs text-paper opacity-0 transition group-hover:opacity-100 hover:bg-ink"
+						class="grid h-5 w-5 cursor-pointer place-items-center rounded-full bg-ink/70 text-xs text-paper opacity-0 transition group-hover:opacity-100 hover:bg-ink"
 					>
 						✕
 					</button>

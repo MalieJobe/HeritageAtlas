@@ -5,7 +5,7 @@ import { formatFuzzyDate, fuzzyDateFromColumns, fuzzyDateToParts } from '$lib/fu
 import { requireEditableTree } from '$lib/server/treeAccess';
 import { parseEventForm } from '$lib/server/eventForm';
 import { inheritedPlace, parentDefaultPlace } from '$lib/server/parentPlace';
-import type { EventFormInitial } from '$lib/components/EventForm.svelte';
+import type { EventRowInitial } from '$lib/components/EventRowFields.svelte';
 import type { PlaceSelection } from '$lib/place';
 import type { GraphData, GraphPerson, Sex } from '$lib/graph/types';
 import type { Actions, PageServerLoad } from './$types';
@@ -206,7 +206,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 						lng: row.place.lng
 					}
 				: null;
-			const initial: EventFormInitial = {
+			const initial: EventRowInitial = {
 				type: row.type,
 				dateParts: fuzzyDateToParts(fuzzyDateFromColumns(row, 'event')),
 				place

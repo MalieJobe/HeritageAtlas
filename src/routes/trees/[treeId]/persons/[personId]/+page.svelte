@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { personName } from '$lib/person';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
-	import EventForm from '$lib/components/EventForm.svelte';
+	import EventRowFields from '$lib/components/EventRowFields.svelte';
 	import MiniFamily from '$lib/components/MiniFamily.svelte';
 	import type { ActionData, PageData } from './$types';
 
@@ -15,10 +15,9 @@
 	const inputClass =
 		'rounded-md border border-sage bg-white px-3 py-2 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none';
 
-	// Inline event form: null = adding, otherwise editing that event id.
+	// Inline event rows: null = just adding, otherwise editing that event id.
 	let editingId = $state<string | null>(null);
 	let formKey = $state(0);
-	let editing = $derived(editingId ? (data.events.find((e) => e.id === editingId) ?? null) : null);
 	function startEdit(id: string) {
 		editingId = id;
 	}
@@ -26,6 +25,23 @@
 		editingId = null;
 		formKey += 1;
 	}
+	// Shared enhance handler for the add/edit event rows: keep the inputs, then
+	// reset the row on success.
+	const saveEnhance =
+		() =>
+		async ({
+			update,
+			result
+		}: {
+			update: (opts?: { reset?: boolean }) => Promise<void>;
+			result: { type: string };
+		}) => {
+			await update({ reset: false });
+			if (result.type === 'success') {
+				editingId = null;
+				formKey += 1;
+			}
+		};
 
 	let relOpen = $state(false);
 	let confirmingDelete = $state(false);
@@ -191,9 +207,9 @@
 			{/if}
 		</section>
 
-		<!-- Right: mini family graph -->
-		<section class="flex flex-col gap-2">
-			<div class="relative h-75 overflow-hidden rounded-lg border border-sage bg-paper">
+		<!-- Right: mini family graph (fills the left column's height) -->
+		<section class="flex h-full min-h-75 flex-col gap-2">
+			<div class="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-sage bg-paper">
 				<MiniFamily graph={data.miniGraph} treeId={data.tree.id} centerId={data.centerId} />
 				{#if data.canEdit}
 					<button
@@ -209,103 +225,91 @@
 		</section>
 	</div>
 
-	<!-- Row 2: events -->
+	<!-- Row 2: events (inline table — add/edit happen as rows, no separate card) -->
 	<section class="flex flex-col gap-3 border-t border-sage pt-6">
 		<h2 class="text-sm font-medium text-ink/80">Events</h2>
-
-		{#if data.events.length > 0}
-			<table class="w-full text-sm">
-				<thead>
-					<tr class="border-b border-sage text-left text-xs font-medium tracking-wide text-ink/45">
-						<th class="py-1.5 pr-3 font-medium">Event</th>
-						<th class="py-1.5 pr-3 font-medium">Date</th>
-						<th class="py-1.5 pr-3 font-medium">Place</th>
-						{#if data.canEdit}<th class="py-1.5"></th>{/if}
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.events as event (event.id)}
-						<tr class="border-b border-sage/40" class:bg-cream={editingId === event.id}>
-							<td class="py-2 pr-3">
-								<span aria-hidden="true">{event.icon}</span>
-								<span class="font-medium text-ink">{event.label}</span>
-							</td>
-							<td class="py-2 pr-3 text-ink/70">{event.date || '—'}</td>
-							<td class="py-2 pr-3 text-ink/70">{event.place || '—'}</td>
-							{#if data.canEdit}
-								<td class="py-2 text-right whitespace-nowrap">
-									<button
-										type="button"
-										onclick={() => startEdit(event.id)}
-										class="text-xs text-ink/40 hover:text-ink">Edit</button
-									>
-									<form method="POST" action="?/deleteEvent" use:enhance class="inline">
-										<input type="hidden" name="eventId" value={event.id} />
-										<button type="submit" class="ml-2 text-xs text-ink/40 hover:text-red-600"
-											>Remove</button
-										>
-									</form>
-								</td>
-							{/if}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		{:else}
-			<p class="text-sm text-ink/55">No events recorded.</p>
+		{#if form?.eventError}
+			<p class="text-sm text-red-600">{form.eventError}</p>
 		{/if}
 
-		{#if data.canEdit}
-			<div class="mt-2 rounded-lg border border-sage bg-paper/60 p-4">
-				<div class="mb-3 flex items-center justify-between">
-					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">
-						{editing ? 'Edit event' : 'Add an event'}
-					</h3>
-					{#if editing}
-						<button type="button" onclick={cancelEdit} class="text-xs text-ink/40 hover:text-ink"
-							>Cancel</button
-						>
+		{#if data.events.length === 0 && !data.canEdit}
+			<p class="text-sm text-ink/55">No events recorded.</p>
+		{:else}
+			<div
+				class="grid grid-cols-[max-content_minmax(150px,1fr)_minmax(220px,1.6fr)_max-content] items-start gap-x-3 text-sm"
+			>
+				{#snippet header(text: string)}
+					<div class="border-b border-sage pb-1.5 text-xs font-medium tracking-wide text-ink/45">
+						{text}
+					</div>
+				{/snippet}
+				{@render header('Event')}
+				{@render header('Date')}
+				{@render header('Place')}
+				<div class="border-b border-sage pb-1.5"></div>
+
+				{#each data.events as event (event.id)}
+					{#if data.canEdit && editingId === event.id}
+						<form class="contents" method="POST" action="?/updateEvent" use:enhance={saveEnhance}>
+							<input type="hidden" name="eventId" value={event.id} />
+							<EventRowFields places={data.places} event={event.initial} />
+							<div class="border-b border-sage/40 py-2 text-right align-top whitespace-nowrap">
+								<button
+									type="submit"
+									class="rounded-md bg-clay px-2.5 py-1 text-xs font-medium text-ink hover:bg-clay/80"
+									>Save</button
+								>
+								<button
+									type="button"
+									onclick={cancelEdit}
+									class="ml-2 text-xs text-ink/40 hover:text-ink">Cancel</button
+								>
+							</div>
+						</form>
+					{:else}
+						<div class="border-b border-sage/40 py-2">
+							<span aria-hidden="true">{event.icon}</span>
+							<span class="font-medium text-ink">{event.label}</span>
+						</div>
+						<div class="border-b border-sage/40 py-2 text-ink/70">{event.date || '—'}</div>
+						<div class="border-b border-sage/40 py-2 text-ink/70">{event.place || '—'}</div>
+						<div class="border-b border-sage/40 py-2 text-right whitespace-nowrap">
+							{#if data.canEdit}
+								<button
+									type="button"
+									onclick={() => startEdit(event.id)}
+									class="text-xs text-ink/40 hover:text-ink">Edit</button
+								>
+								<form method="POST" action="?/deleteEvent" use:enhance class="inline">
+									<input type="hidden" name="eventId" value={event.id} />
+									<button type="submit" class="ml-2 text-xs text-ink/40 hover:text-red-600"
+										>Remove</button
+									>
+								</form>
+							{/if}
+						</div>
 					{/if}
-				</div>
+				{/each}
 
-				{#if form?.eventError}
-					<p class="mb-2 text-sm text-red-600">{form.eventError}</p>
-				{/if}
-
-				{#key editingId ? `edit:${editingId}` : `new:${formKey}`}
-					<form
-						method="POST"
-						action={editing ? '?/updateEvent' : '?/addEvent'}
-						use:enhance={() =>
-							async ({ update, result }) => {
-								await update({ reset: false });
-								if (result.type === 'success') {
-									editingId = null;
-									formKey += 1;
-								}
-							}}
-						class="flex flex-col gap-4"
-					>
-						{#if editing}
-							<input type="hidden" name="eventId" value={editing.id} />
-							<EventForm places={data.places} event={editing.initial} />
-						{:else}
-							<EventForm
+				<!-- Inline add row -->
+				{#if data.canEdit}
+					{#key `add:${formKey}`}
+						<form class="contents" method="POST" action="?/addEvent" use:enhance={saveEnhance}>
+							<EventRowFields
 								places={data.places}
 								defaultPlace={data.defaultPlace}
 								defaultType={data.defaultType}
 							/>
-						{/if}
-						<div>
-							<button
-								type="submit"
-								class="rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80"
-							>
-								{editing ? 'Save event' : 'Add event'}
-							</button>
-						</div>
-					</form>
-				{/key}
+							<div class="border-b border-sage/40 py-2 text-right align-top whitespace-nowrap">
+								<button
+									type="submit"
+									class="rounded-md bg-clay px-3 py-1.5 text-xs font-medium text-ink hover:bg-clay/80"
+									>Add event</button
+								>
+							</div>
+						</form>
+					{/key}
+				{/if}
 			</div>
 		{/if}
 	</section>
