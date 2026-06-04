@@ -350,7 +350,10 @@
 	class="relative {height == null ? 'h-full' : ''}"
 	style={height == null ? undefined : `height:${height}px`}
 >
-	<div bind:this={el} class="h-full w-full overflow-hidden rounded-lg border border-sage"></div>
+	<div
+		bind:this={el}
+		class="h-full w-full overflow-hidden {height == null ? '' : 'rounded-lg border border-sage'}"
+	></div>
 
 	<!-- Bounding-box fit controls (alongside the zoom controls top-right). -->
 	<div

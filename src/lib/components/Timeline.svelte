@@ -86,7 +86,7 @@
 	let displayYear = $derived(Math.round(clampYear(year)));
 </script>
 
-<div class="rounded-lg border border-sage bg-paper px-4 py-3">
+<div class="shrink-0 border-t border-sage bg-paper px-4 py-3">
 	<div class="flex items-center gap-4">
 		<!-- Play / pause -->
 		<button

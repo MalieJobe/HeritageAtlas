@@ -222,8 +222,8 @@
 
 <div
 	bind:this={containerEl}
-	class="relative w-full overflow-hidden rounded-lg border border-sage bg-paper select-none
-		{fill ? 'h-full' : 'h-[70vh] min-h-105'}"
+	class="relative w-full overflow-hidden bg-paper select-none
+		{fill ? 'h-full' : 'h-[70vh] min-h-105 rounded-lg border border-sage'}"
 >
 	{#if laying}
 		<div class="absolute inset-0 grid place-items-center text-sm text-ink/50">
@@ -336,15 +336,15 @@
 		</div>
 	{/if}
 
-	<!-- Selected-person detail panel (standalone only; the split view shows its own). -->
-	{#if selected && !controlled}
+	<!-- Selected-person detail panel: the one place to open a profile from the graph. -->
+	{#if selected}
 		<div
 			class="absolute top-3 right-3 w-64 rounded-lg border border-sage bg-white/95 p-4 shadow-md backdrop-blur"
 		>
 			<button
 				class="absolute top-2 right-2 text-ink/40 hover:text-ink"
 				aria-label="Close"
-				onclick={() => (internalSelected = null)}>✕</button
+				onclick={() => (controlled ? onselect?.(null) : (internalSelected = null))}>✕</button
 			>
 			<div class="flex flex-col items-center gap-3 text-center">
 				<PersonAvatar photoUrl={selected.photoUrl} initials={selected.initials} size={72} />

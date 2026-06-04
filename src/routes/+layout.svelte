@@ -3,12 +3,17 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/Header.svelte';
 	import { invalidate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 
 	let { children, data } = $props();
 
 	let supabase = $derived(data.supabase);
 	let session = $derived(data.session);
+
+	// The tree home is a full-bleed split view (tree | map + timeline); every other
+	// page sits in the usual centred, padded column.
+	let fullBleed = $derived(page.route.id === '/trees/[treeId]');
 
 	// Keep the server and client in sync: whenever the auth state changes (or the
 	// token is refreshed), rerun load functions that depend on 'supabase:auth'.
@@ -29,7 +34,13 @@
 
 <div class="flex min-h-screen flex-col">
 	<Header user={data.user} />
-	<main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-		{@render children()}
-	</main>
+	{#if fullBleed}
+		<main class="flex min-h-0 flex-1 flex-col">
+			{@render children()}
+		</main>
+	{:else}
+		<main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+			{@render children()}
+		</main>
+	{/if}
 </div>
