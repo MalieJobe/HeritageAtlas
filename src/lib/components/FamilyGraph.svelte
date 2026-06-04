@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
 	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
 	import PersonNode from '$lib/components/PersonNode.svelte';
@@ -153,10 +154,17 @@
 		tweenTo(cw / 2 - (pos.x + NODE_WIDTH / 2) * s, ch / 2 - (pos.y + NODE_HEIGHT / 2) * s, s);
 	}
 
-	// In controlled mode, glide to the externally-selected node when it changes.
+	// In controlled mode, glide to the externally-selected node — but only when the
+	// selection itself changes. `centerOn` reads tx/ty/scale, so we untrack it;
+	// otherwise panning (which changes tx/ty) would re-fire this effect and snap the
+	// node back to centre. Once centred, the view is yours to drag freely.
+	let centeredFor: string | null = null;
 	$effect(() => {
 		const id = controlled ? selectedId : null;
-		if (id && result) centerOn(id);
+		if (!result) return;
+		if (id === centeredFor) return;
+		centeredFor = id;
+		if (id) untrack(() => centerOn(id));
 	});
 
 	// Pointer panning. `moved` lets us tell a pan from a click so dragging over a
