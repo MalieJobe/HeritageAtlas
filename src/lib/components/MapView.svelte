@@ -4,7 +4,7 @@
 	import { osmRasterStyle } from '$lib/map/style';
 	import { surnameColor } from '$lib/surnameColor';
 	import { resolvePositions } from '$lib/map/positionResolver';
-	import { spreadCoincident, clusterPoints, type Cluster } from '$lib/map/cluster';
+	import { layoutMarkers, type ClusterInstruction } from '$lib/map/markerLayout';
 	import type { MapPerson } from '$lib/map/types';
 
 	let {
@@ -24,11 +24,9 @@
 		onselect?: (id: string | null) => void;
 	} = $props();
 
-	// Who is where at this year, then fanned out so coincident people never sit on
-	// the exact same spot. Recomputed when the year (or data) changes so the dots
-	// are ready to move once the timeline slider drives `year`.
+	// Who is where at this year. Recomputed when the year (or data) changes so the
+	// dots are ready to move once the timeline slider drives `year`.
 	let positions = $derived(resolvePositions(persons, year));
-	let points = $derived(spreadCoincident(positions));
 
 	let el: HTMLDivElement;
 	// maplibre-gl touches `window`, so it's imported dynamically (client-only).
@@ -37,20 +35,29 @@
 	let ready = $state(false);
 	let fitted = false;
 
-	// One marker per cluster (a lone person keeps a stable key so their dot is
-	// reused across frames; a crowd is keyed by its membership). Plain Maps on
-	// purpose — imperative DOM bookkeeping, not reactive state.
+	// One marker per render key — `p:<id>` for an individual dot, `c:<ids>` for a
+	// count badge. Plain Maps on purpose — imperative DOM bookkeeping, not reactive
+	// state (the $effect drives updates).
 	/* eslint-disable svelte/prefer-svelte-reactivity */
 	const markers = new Map<
 		string,
-		{ marker: import('maplibre-gl').Marker; element: HTMLButtonElement; memberIds: string[] }
+		{
+			marker: import('maplibre-gl').Marker;
+			element: HTMLButtonElement;
+			kind: 'dot' | 'cluster';
+			memberIds: string[];
+		}
 	>();
 	/* eslint-enable svelte/prefer-svelte-reactivity */
 
-	const MERGE_PX = 46; // dots are 44px — merge anything that would overlap
+	const MIN_DIST = 48; // dots are 44px — keep a little air between them
+	// Past this scatter footprint a crowd would land too far from the truth, so it
+	// collapses to a count badge instead — kept fairly tight so dense spots turn
+	// into a number early rather than fanning out wildly (groups of ~5+ cluster).
+	const MAX_SPREAD = 72;
 
-	/** Build the dot element for a single person: avatar + surname-coloured ring. */
-	function buildPersonElement(p: MapPerson): HTMLButtonElement {
+	/** Build the dot element for a person: avatar + surname-coloured ring (task 2.11). */
+	function buildElement(p: MapPerson): HTMLButtonElement {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'ha-dot';
@@ -78,18 +85,17 @@
 		return button;
 	}
 
-	/** Build a count badge for a crowd; clicking it zooms in to split it apart. */
-	function buildClusterElement(cluster: Cluster): HTMLButtonElement {
+	/** Build a count badge for a crowd too dense to fan out; clicking zooms in to split it. */
+	function buildClusterElement(cluster: ClusterInstruction): HTMLButtonElement {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'ha-cluster';
-		const n = cluster.members.length;
-		button.title = `${n} people here — click to zoom in`;
-		button.setAttribute('aria-label', `${n} people here`);
+		button.title = `${cluster.count} people here — click to zoom in`;
+		button.setAttribute('aria-label', `${cluster.count} people here`);
 
 		const span = document.createElement('span');
 		span.className = 'ha-cluster-count';
-		span.textContent = String(n);
+		span.textContent = String(cluster.count);
 		button.appendChild(span);
 
 		button.addEventListener('click', (event) => {
@@ -105,37 +111,43 @@
 		return button;
 	}
 
-	/** Re-cluster the current points and reconcile markers to match. */
+	/** Reconcile markers to the computed layout: scattered individual dots, with a
+	 *  count badge only where a crowd is too dense to fan out. */
 	function render() {
 		if (!map || !maplibre) return;
-		const project = (lng: number, lat: number) => {
-			const p = map!.project([lng, lat]);
-			return { x: p.x, y: p.y };
-		};
-		const clusters = clusterPoints(points, project, MERGE_PX);
+
+		const projected = positions.map((pos) => {
+			const p = map!.project([pos.lng, pos.lat]);
+			return { id: pos.person.id, lng: pos.lng, lat: pos.lat, x: p.x, y: p.y };
+		});
+		const instructions = layoutMarkers(projected, { minDist: MIN_DIST, maxSpread: MAX_SPREAD });
+		const personById = new Map(positions.map((pos) => [pos.person.id, pos.person]));
 
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local bookkeeping
 		const live = new Set<string>();
-		for (const cluster of clusters) {
-			live.add(cluster.key);
-			const existing = markers.get(cluster.key);
-			if (existing) {
-				existing.marker.setLngLat([cluster.lng, cluster.lat]);
-			} else {
+		for (const ins of instructions) {
+			const key = ins.kind === 'dot' ? `p:${ins.id}` : ins.key;
+			live.add(key);
+			let entry = markers.get(key);
+			if (!entry) {
 				const element =
-					cluster.members.length === 1
-						? buildPersonElement(cluster.members[0].position.person)
-						: buildClusterElement(cluster);
+					ins.kind === 'dot' ? buildElement(personById.get(ins.id)!) : buildClusterElement(ins);
 				const marker = new maplibre.Marker({ element, anchor: 'center' });
-				marker.setLngLat([cluster.lng, cluster.lat]).addTo(map);
-				markers.set(cluster.key, {
+				marker.setLngLat([ins.lng, ins.lat]).addTo(map);
+				entry = {
 					marker,
 					element,
-					memberIds: cluster.members.map((m) => m.position.person.id)
-				});
+					kind: ins.kind,
+					memberIds: ins.kind === 'dot' ? [ins.id] : ins.memberIds
+				};
+				markers.set(key, entry);
+			} else {
+				entry.marker.setLngLat([ins.lng, ins.lat]);
 			}
+			entry.marker.setOffset(ins.kind === 'dot' ? [ins.offsetX, ins.offsetY] : [0, 0]);
 		}
 
+		// Drop markers that no longer correspond to a rendered dot/badge.
 		for (const [key, entry] of markers) {
 			if (!live.has(key)) {
 				entry.marker.remove();
@@ -157,12 +169,12 @@
 		});
 	}
 
-	/** Reflect the selected id onto the marker elements (lone dot, or the crowd holding them). */
+	/** Reflect the selected id onto the marker elements (lone dot, or the badge holding them). */
 	function applySelection() {
 		for (const entry of markers.values()) {
-			const isSolo = entry.memberIds.length === 1 && entry.memberIds[0] === selectedId;
+			const isSolo = entry.kind === 'dot' && entry.memberIds[0] === selectedId;
 			const holdsSelected =
-				entry.memberIds.length > 1 && selectedId != null && entry.memberIds.includes(selectedId);
+				entry.kind === 'cluster' && selectedId != null && entry.memberIds.includes(selectedId);
 			entry.element.classList.toggle('ha-dot-selected', isSolo);
 			entry.element.classList.toggle('ha-cluster-has-selected', holdsSelected);
 			entry.element.style.zIndex = isSolo || holdsSelected ? '10' : '';
@@ -216,9 +228,9 @@
 		if (!maplibre) return null;
 		const bounds = new maplibre.LngLatBounds();
 		let any = false;
-		for (const pt of points) {
-			if (!isAlive(pt.position.person, year)) continue;
-			bounds.extend([pt.lng, pt.lat]);
+		for (const pos of positions) {
+			if (!isAlive(pos.person, year)) continue;
+			bounds.extend([pos.lng, pos.lat]);
 			any = true;
 		}
 		return any ? bounds : null;
@@ -242,7 +254,7 @@
 
 	// Re-fit the living as the year (and thus who's alive / where) changes.
 	$effect(() => {
-		void points;
+		void positions;
 		void year;
 		if (ready && followAlive) followFit();
 	});
@@ -272,7 +284,7 @@
 		map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right');
 		// Clicking empty map clears the selection.
 		map.on('click', () => onselect?.(null));
-		// Reproject markers on every camera move (so crowds split as you zoom).
+		// Re-scatter on every camera move (so the spread tightens as you zoom in).
 		map.on('move', scheduleRender);
 		// A user-driven drag/zoom cancels follow mode; our own fits don't.
 		map.on('moveend', () => {
@@ -291,9 +303,9 @@
 		});
 	});
 
-	// Re-cluster whenever the resolved points change (year scrub / data edits).
+	// Re-render whenever the resolved positions change (year scrub / data edits).
 	$effect(() => {
-		void points;
+		void positions;
 		if (ready) scheduleRender();
 	});
 
@@ -431,7 +443,7 @@
 		color: rgba(13, 15, 11, 0.7);
 	}
 
-	/* Crowd badge: a count that splits into individual dots as you zoom in. */
+	/* Count badge: only shown for a crowd too dense to fan into individual dots. */
 	:global(.ha-cluster) {
 		display: grid;
 		place-items: center;
