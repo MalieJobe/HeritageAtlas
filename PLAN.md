@@ -143,11 +143,11 @@ Flow: logged-out visitors get a marketing landing with a **live, interactive Win
 demo**; logging in lands on a **dashboard hub**; brand-new users go through a guided
 **"start with yourself"** wizard. (Decided 2026-06-05.)
 
-- [ ] **3.1 Routing & redirects** — `/` serves the landing only when logged out; logged-in hits to
+- [x] **3.1 Routing & redirects** — `/` serves the landing only when logged out; logged-in hits to
       `/` redirect to `/dashboard`. Login/signup success → `/dashboard`; `/dashboard` with no tree →
       `/start`. Header: logged-out = logo + **Log in** / **Sign up**; logged-in = logo → `/dashboard` + account avatar menu (Account, Sign out). No header tree-switcher — switching happens on the
       dashboard.
-- [ ] **3.2 Landing page (`/`)** — hero (big title "Map your family across time", subtitle, primary
+- [x] **3.2 Landing page (`/`)** — hero (big title "Map your family across time", subtitle, primary
       CTA _Start your family tree_ → signup, secondary _Explore the demo_ → scroll to demo);
       **How it works** (3 steps: add family → add places & dates → watch them move); **feature
       highlights** (interactive tree, historical map, time-travel slider, GEDCOM import); **footer**
@@ -158,28 +158,28 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
       `scripts/windsor-demo/build.mjs` → migration `0016`. 29 free-licensed portraits (PD/CC0/CC BY/
       BY-SA, verified per-file) in `static/demo/portraits/` + `CREDITS.md`; the 5 youngest use initials.
       Note: the public demo (3.5) must surface the CC-BY/BY-SA attributions.
-- [ ] **3.4 Public read access for the demo** — RLS policy so the single demo tree (and only it) is
+- [x] **3.4 Public read access for the demo** — RLS policy so the single demo tree (and only it) is
       readable without auth; an unauthenticated loader path that serves it to the landing. (General
       per-tree public share links remain deferred.)
-- [ ] **3.5 Embedded live demo** — reuse the tree | map + timeline as a **read-only** embed on the
+- [x] **3.5 Embedded live demo** — reuse the tree | map + timeline as a **read-only** embed on the
       landing (pan/zoom/scrub/select work; no edit affordances; "Open profile" hidden). Lazy-load
       MapLibre so it doesn't block first paint.
-- [ ] **3.6 Dashboard (`/dashboard`)** — tree card(s) with name, **mini-tree thumbnail**, **map
+- [x] **3.6 Dashboard (`/dashboard`)** — tree card(s) with name, **mini-tree thumbnail**, **map
       preview thumbnail**, and **stats** (people · generations · places · year span) + _Open_; quick
       actions (Add person, Import GEDCOM [links to Phase 5 when ready], New tree); pending-invites
       banner. No-tree state → redirect to `/start`.
-- [ ] **3.7 On-this-day widget** — surface today's birth/death anniversaries from event dates on the
+- [x] **3.7 On-this-day widget** — surface today's birth/death anniversaries from event dates on the
       dashboard ("Otto Brenner would turn 120 — b. 1906").
-- [ ] **3.8 Card thumbnails & stats** — derive the stat counts and render the mini-tree + static map
+- [x] **3.8 Card thumbnails & stats** — derive the stat counts and render the mini-tree + static map
       preview used on dashboard cards (and reusable elsewhere).
-- [ ] **3.9 Onboarding wizard (`/start`)** — guided: (0) name your family tree (default "My Family")
+- [x] **3.9 Onboarding wizard (`/start`)** — guided: (0) name your family tree (default "My Family")
       → create tree; (1) add yourself; (2) add parents; (3) add a partner; (4) add children; finish →
       the tree view. Steps skippable; reuses person/relationship creation.
-- [ ] **3.10 Tree Settings → Members** — surface invitations/roles quietly under Settings (invite by
+- [x] **3.10 Tree Settings → Members** — surface invitations/roles quietly under Settings (invite by
       email, set role, remove); keep rename + danger zone; keep `/invitations` and the dashboard
       invite banner.
-- [ ] **3.11 Tree header nav** — `← Dashboard` + tree name on the tree and person pages.
-- [ ] **3.12 Account page** — confirm `/account` covers email, change password, sign out, delete
+- [x] **3.11 Tree header nav** — `← Dashboard` + tree name on the tree and person pages.
+- [x] **3.12 Account page** — confirm `/account` covers email, change password, sign out, delete
       account.
 
 ## Phase 4 — Historical map layer
