@@ -101,7 +101,6 @@
 		button.addEventListener('click', (event) => {
 			event.stopPropagation();
 			if (!map) return;
-			beginProgrammatic();
 			map.easeTo({
 				center: [cluster.lng, cluster.lat],
 				zoom: Math.min(map.getZoom() + 2, 18),
@@ -182,13 +181,10 @@
 	}
 
 	// --- Camera fitting (bounding-box buttons) ---
+	// `followAlive` is a sticky mode: once on, it stays on through the whole year
+	// sweep and is only switched off by a genuine user pan/zoom (detected via the
+	// event's `originalEvent`) or by the "fit everyone" button.
 	let followAlive = $state(false);
-	// Distinguish our own camera moves from the user's, so a programmatic fit
-	// doesn't switch the follow mode off.
-	let programmatic = false;
-	function beginProgrammatic() {
-		programmatic = true;
-	}
 
 	/** Born by this year and not yet dead. People with no birth year count as present. */
 	function isAlive(p: MapPerson, y: number): boolean {
@@ -199,7 +195,6 @@
 
 	function easeToBounds(bounds: import('maplibre-gl').LngLatBounds, duration: number) {
 		if (!map) return;
-		beginProgrammatic();
 		const ne = bounds.getNorthEast();
 		const sw = bounds.getSouthWest();
 		if (ne.lng === sw.lng && ne.lat === sw.lat) {
@@ -236,27 +231,44 @@
 		return any ? bounds : null;
 	}
 
-	// While following, keep the box around the living — throttled so the year
-	// sweep stays smooth rather than re-fitting on every animation frame.
-	let lastFollowFit = 0;
-	function followFit(force = false) {
-		const now = performance.now();
-		if (!force && now - lastFollowFit < 220) return;
-		lastFollowFit = now;
+	function fitLiving() {
 		const bounds = aliveBounds();
 		if (bounds) easeToBounds(bounds, 420);
 	}
 
+	// Re-fit the living as the year (and thus who's alive / where) changes. Leading +
+	// trailing throttle: a fast sweep stays smooth, but the final year always gets a
+	// fit (the trailing call), so the box never lags behind the timeline.
+	const FOLLOW_INTERVAL = 180;
+	let lastFollowFit = 0;
+	let followTimer: ReturnType<typeof setTimeout> | undefined;
+	function scheduleFollowFit() {
+		clearTimeout(followTimer);
+		const elapsed = performance.now() - lastFollowFit;
+		if (elapsed >= FOLLOW_INTERVAL) {
+			lastFollowFit = performance.now();
+			fitLiving();
+		} else {
+			followTimer = setTimeout(() => {
+				lastFollowFit = performance.now();
+				fitLiving();
+			}, FOLLOW_INTERVAL - elapsed);
+		}
+	}
+
 	function toggleFollowAlive() {
 		followAlive = !followAlive;
-		if (followAlive) followFit(true);
+		if (followAlive) {
+			lastFollowFit = performance.now();
+			fitLiving();
+		}
 	}
 
 	// Re-fit the living as the year (and thus who's alive / where) changes.
 	$effect(() => {
 		void positions;
 		void year;
-		if (ready && followAlive) followFit();
+		if (ready && followAlive) scheduleFollowFit();
 	});
 
 	/** Fit the viewport to all dots once, on first render. */
@@ -286,15 +298,13 @@
 		map.on('click', () => onselect?.(null));
 		// Re-scatter on every camera move (so the spread tightens as you zoom in).
 		map.on('move', scheduleRender);
-		// A user-driven drag/zoom cancels follow mode; our own fits don't.
-		map.on('moveend', () => {
-			programmatic = false;
+		// Only a genuine user gesture (drag / scroll-zoom carry an `originalEvent`)
+		// cancels follow mode; our own programmatic fits never do.
+		map.on('dragstart', (e) => {
+			if (e.originalEvent) followAlive = false;
 		});
-		map.on('dragstart', () => {
-			if (!programmatic) followAlive = false;
-		});
-		map.on('zoomstart', () => {
-			if (!programmatic) followAlive = false;
+		map.on('zoomstart', (e) => {
+			if (e.originalEvent) followAlive = false;
 		});
 		map.on('load', () => {
 			ready = true;
@@ -325,10 +335,7 @@
 		centeredFor = id;
 		if (!id || followAlive) return;
 		const pos = untrack(() => positions).find((p) => p.person.id === id);
-		if (pos) {
-			beginProgrammatic();
-			map.easeTo({ center: [pos.lng, pos.lat], duration: 550 });
-		}
+		if (pos) map.easeTo({ center: [pos.lng, pos.lat], duration: 550 });
 	});
 
 	// Keep the canvas sized to its container (the split-view divider resizes it).
@@ -340,6 +347,7 @@
 	});
 
 	onDestroy(() => {
+		clearTimeout(followTimer);
 		for (const entry of markers.values()) entry.marker.remove();
 		markers.clear();
 		map?.remove();
