@@ -144,6 +144,13 @@
 				entry.marker.setLngLat([ins.lng, ins.lat]);
 			}
 			entry.marker.setOffset(ins.kind === 'dot' ? [ins.offsetX, ins.offsetY] : [0, 0]);
+			// Grey out a lone dot once its person has died by this year (unborn people
+			// simply aren't on the map yet).
+			if (ins.kind === 'dot') {
+				const person = personById.get(ins.id);
+				const dead = !!person && person.deathYear != null && year > person.deathYear;
+				entry.element.classList.toggle('ha-dot-dead', dead);
+			}
 		}
 
 		// Drop markers that no longer correspond to a rendered dot/badge.
@@ -363,9 +370,10 @@
 		class="h-full w-full overflow-hidden {height == null ? '' : 'rounded-lg border border-sage'}"
 	></div>
 
-	<!-- Bounding-box fit controls (alongside the zoom controls top-right). -->
+	<!-- Bounding-box fit controls. Sit below the mobile view-toggle (top-left) on
+		 small screens, back up top on lg where there's no toggle. -->
 	<div
-		class="absolute top-2 left-2 z-10 flex flex-col overflow-hidden rounded-md border border-sage bg-white/90 text-ink shadow-sm backdrop-blur"
+		class="absolute top-14 left-2 z-10 flex flex-col overflow-hidden rounded-md border border-sage bg-white/90 text-ink shadow-sm backdrop-blur lg:top-2"
 	>
 		<button
 			type="button"
@@ -432,10 +440,16 @@
 		box-shadow: 0 1px 4px rgba(13, 15, 11, 0.35);
 		transition:
 			transform 0.12s ease,
-			box-shadow 0.12s ease;
+			box-shadow 0.12s ease,
+			filter 0.3s ease;
 	}
 	:global(.ha-dot:hover) {
 		transform: scale(1.08);
+	}
+	/* Died by the current year — drained of colour. */
+	:global(.ha-dot-dead) {
+		filter: grayscale(1);
+		opacity: 0.9;
 	}
 	:global(.ha-dot-selected) {
 		transform: scale(1.18);

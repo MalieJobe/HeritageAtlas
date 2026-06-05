@@ -19,6 +19,10 @@
 	// Shared selection across both panes.
 	let selectedId = $state<string | null>(null);
 
+	// Below lg the panes don't fit side by side: the map fills the width and this
+	// toggles to the tree (and back). On lg+ both show and this is ignored.
+	let mobileView = $state<'map' | 'tree'>('map');
+
 	let hasPeople = $derived(data.graph.persons.length > 0);
 </script>
 
@@ -31,9 +35,14 @@
 		</p>
 	</div>
 {:else}
-	<!-- Fixed 50/50 split: tree on the left, map on the right. -->
-	<div class="flex min-h-0 flex-1">
-		<div class="min-w-0 flex-1 border-r border-sage">
+	<!-- lg+: fixed 50/50 split (tree | map). Below lg: one pane fills the width and
+		 the top-left button toggles between map and tree. -->
+	<div class="relative flex min-h-0 flex-1">
+		<div
+			class="min-w-0 flex-1 lg:block lg:border-r lg:border-sage {mobileView === 'tree'
+				? 'block'
+				: 'hidden'}"
+		>
 			<FamilyGraph
 				graph={data.graph}
 				treeId={data.tree.id}
@@ -43,7 +52,7 @@
 				onselect={(id) => (selectedId = id)}
 			/>
 		</div>
-		<div class="min-w-0 flex-1">
+		<div class="min-w-0 flex-1 lg:block {mobileView === 'map' ? 'block' : 'hidden'}">
 			<MapView
 				persons={data.map.persons}
 				{year}
@@ -52,6 +61,49 @@
 				onselect={(id) => (selectedId = id)}
 			/>
 		</div>
+
+		<!-- Mobile-only view toggle. -->
+		<button
+			type="button"
+			onclick={() => (mobileView = mobileView === 'map' ? 'tree' : 'map')}
+			class="absolute top-2 left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream lg:hidden"
+		>
+			{#if mobileView === 'map'}
+				<svg
+					width="15"
+					height="15"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<rect x="6" y="1.5" width="4" height="3" rx="1" />
+					<rect x="1.5" y="11.5" width="4" height="3" rx="1" />
+					<rect x="10.5" y="11.5" width="4" height="3" rx="1" />
+					<path d="M8 4.5V8M3.5 11.5v-1.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v1.5" />
+				</svg>
+				Tree
+			{:else}
+				<svg
+					width="15"
+					height="15"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M8 14.5s5-4.5 5-8a5 5 0 0 0-10 0c0 3.5 5 8 5 8z" />
+					<circle cx="8" cy="6.5" r="1.8" />
+				</svg>
+				Map
+			{/if}
+		</button>
 	</div>
 
 	<Timeline bind:year {defaultMin} {defaultMax} />

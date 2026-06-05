@@ -167,6 +167,21 @@
 		if (id) untrack(() => centerOn(id));
 	});
 
+	// Re-fit when the graph first gains real dimensions — e.g. it was hidden behind
+	// the mobile view toggle (0×0) and just became visible.
+	$effect(() => {
+		if (!containerEl) return;
+		const elRef = containerEl;
+		let hadSize = elRef.clientWidth > 0 && elRef.clientHeight > 0;
+		const ro = new ResizeObserver(() => {
+			const hasSize = elRef.clientWidth > 0 && elRef.clientHeight > 0;
+			if (hasSize && !hadSize && result) fitToView();
+			hadSize = hasSize;
+		});
+		ro.observe(elRef);
+		return () => ro.disconnect();
+	});
+
 	// Pointer panning. `moved` lets us tell a pan from a click so dragging over a
 	// node doesn't select it.
 	let panning = $state(false);
@@ -211,12 +226,13 @@
 
 	let connectors = $derived(result ? buildConnectors(result) : []);
 
-	/** Faded if the timeline year is set and this person isn't alive yet / anymore. */
-	function isDimmed(p: GraphPerson): boolean {
-		if (year == null) return false;
-		if (p.birthYear != null && year < p.birthYear) return true;
-		if (p.deathYear != null && year > p.deathYear) return true;
-		return false;
+	/** Where this person sits relative to the timeline year: not-yet-born, dead, or
+	 *  living. Drives the visual cue — unborn fade (still in colour), dead go grey. */
+	function lifeState(p: GraphPerson): 'unborn' | 'dead' | 'living' {
+		if (year == null) return 'living';
+		if (p.birthYear != null && year < p.birthYear) return 'unborn';
+		if (p.deathYear != null && year > p.deathYear) return 'dead';
+		return 'living';
 	}
 </script>
 
@@ -285,11 +301,13 @@
 				<!-- Person nodes. -->
 				{#each graph.persons as person (person.id)}
 					{@const pos = result.nodes.get(person.id)}
+					{@const state = lifeState(person)}
 					{#if pos}
 						<g
 							transform="translate({pos.x},{pos.y})"
 							class="ha-node"
-							opacity={isDimmed(person) ? 0.22 : 1}
+							style:opacity={state === 'unborn' ? 0.3 : state === 'dead' ? 0.9 : 1}
+							style:filter={state === 'dead' ? 'grayscale(1)' : null}
 						>
 							{#if person.id === activeSelected}
 								<rect
@@ -367,6 +385,8 @@
 
 <style>
 	.ha-node {
-		transition: opacity 0.4s ease;
+		transition:
+			opacity 0.4s ease,
+			filter 0.4s ease;
 	}
 </style>
