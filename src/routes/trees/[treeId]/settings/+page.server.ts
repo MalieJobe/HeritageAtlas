@@ -148,6 +148,45 @@ export const actions: Actions = {
 		return { revoked: true };
 	},
 
+	setRole: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		const tree = await loadTree(supabase, params.treeId);
+		if (tree.owner_id !== user.id) {
+			return fail(403, { memberError: 'Only the owner can change roles.' });
+		}
+		const formData = await request.formData();
+		const userId = String(formData.get('userId') ?? '');
+		const role = String(formData.get('role') ?? '');
+		if (role !== 'editor' && role !== 'viewer') {
+			return fail(400, { memberError: 'Pick a role of editor or viewer.' });
+		}
+		const { error: dbError } = await supabase
+			.from('tree_members')
+			.update({ role })
+			.eq('tree_id', params.treeId)
+			.eq('user_id', userId)
+			.neq('role', 'owner');
+		if (dbError) return fail(400, { memberError: dbError.message });
+		return { memberUpdated: true };
+	},
+
+	removeMember: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		const tree = await loadTree(supabase, params.treeId);
+		if (tree.owner_id !== user.id) {
+			return fail(403, { memberError: 'Only the owner can remove members.' });
+		}
+		const userId = String((await request.formData()).get('userId') ?? '');
+		const { error: dbError } = await supabase
+			.from('tree_members')
+			.delete()
+			.eq('tree_id', params.treeId)
+			.eq('user_id', userId)
+			.neq('role', 'owner');
+		if (dbError) return fail(400, { memberError: dbError.message });
+		return { memberRemoved: true };
+	},
+
 	delete: async ({ params, locals: { supabase, user } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const tree = await loadTree(supabase, params.treeId);
@@ -160,6 +199,6 @@ export const actions: Actions = {
 			return fail(400, { deleteError: dbError.message });
 		}
 
-		redirect(303, '/trees');
+		redirect(303, '/dashboard');
 	}
 };

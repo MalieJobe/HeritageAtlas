@@ -59,19 +59,46 @@
 		<h2 class="text-sm font-medium text-ink/80">Members</h2>
 		<ul class="flex flex-col divide-y divide-sage/40 rounded-lg border border-sage bg-white">
 			{#each data.members as member (member.userId)}
-				<li class="flex items-center justify-between px-4 py-3">
-					<span class="text-ink">
+				<li class="flex items-center justify-between gap-3 px-4 py-3">
+					<span class="min-w-0 truncate text-ink">
 						{memberLabel(member)}
 						{#if member.isYou}<span class="text-ink/40">(you)</span>{/if}
 					</span>
-					<span
-						class="rounded-full bg-sage/40 px-2 py-0.5 text-xs font-medium tracking-wide text-ink/70 uppercase"
-					>
-						{member.role}
-					</span>
+					{#if data.isOwner && member.role !== 'owner'}
+						<div class="flex shrink-0 items-center gap-2">
+							<form method="POST" action="?/setRole" use:enhance>
+								<input type="hidden" name="userId" value={member.userId} />
+								<select
+									name="role"
+									value={member.role}
+									onchange={(e) => e.currentTarget.form?.requestSubmit()}
+									class="rounded-md border border-sage bg-white px-2 py-1 text-xs text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
+								>
+									<option value="editor">editor</option>
+									<option value="viewer">viewer</option>
+								</select>
+							</form>
+							<form method="POST" action="?/removeMember" use:enhance>
+								<input type="hidden" name="userId" value={member.userId} />
+								<button
+									type="submit"
+									class="rounded-md border border-sage px-2 py-1 text-xs text-ink/60 hover:bg-cream hover:text-red-600"
+								>
+									Remove
+								</button>
+							</form>
+						</div>
+					{:else}
+						<span
+							class="shrink-0 rounded-full bg-sage/40 px-2 py-0.5 text-xs font-medium tracking-wide text-ink/70 uppercase"
+						>
+							{member.role}
+						</span>
+					{/if}
 				</li>
 			{/each}
 		</ul>
+		{#if form?.memberError}<p class="text-sm text-red-600">{form.memberError}</p>{/if}
 	</section>
 
 	<!-- Invite (owner only) -->
