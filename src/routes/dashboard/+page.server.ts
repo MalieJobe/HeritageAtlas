@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { personName } from '$lib/person';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Lower-bound year from an ISO date string, or null. */
@@ -7,6 +8,16 @@ function yearOf(iso: string | null): number | null {
 	const y = Number.parseInt(iso.slice(0, 4), 10);
 	return Number.isFinite(y) ? y : null;
 }
+
+export type Anniversary = {
+	name: string;
+	kind: 'birth' | 'death';
+	year: number;
+	years: number; // years since
+	treeId: string;
+	treeName: string;
+	personId: string;
+};
 
 export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 	if (!user) redirect(303, '/auth/login');
@@ -60,6 +71,38 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 		}))
 		.sort((a, b) => a.name.localeCompare(b.name));
 
+	// On this day: births/deaths whose month+day match today, across all trees.
+	const treeName = new Map(base.map((t) => [t.id, t.name]));
+	const now = new Date();
+	const mm = String(now.getMonth() + 1).padStart(2, '0');
+	const dd = String(now.getDate()).padStart(2, '0');
+	const thisYear = now.getFullYear();
+	const anniversaries: Anniversary[] = [];
+	if (treeIds.length > 0) {
+		const { data: lifeEvents } = await supabase
+			.from('events')
+			.select('type, event_date, tree_id, person:persons(id, given_names, surname, nickname)')
+			.in('tree_id', treeIds)
+			.in('type', ['birth', 'death'])
+			.not('event_date', 'is', null);
+		for (const e of lifeEvents ?? []) {
+			if (!e.person || !e.event_date) continue;
+			if (e.event_date.slice(5, 10) !== `${mm}-${dd}`) continue;
+			const year = yearOf(e.event_date);
+			if (year == null) continue;
+			anniversaries.push({
+				name: personName(e.person),
+				kind: e.type === 'death' ? 'death' : 'birth',
+				year,
+				years: thisYear - year,
+				treeId: e.tree_id,
+				treeName: treeName.get(e.tree_id) ?? '',
+				personId: e.person.id
+			});
+		}
+		anniversaries.sort((a, b) => b.years - a.years);
+	}
+
 	const email = user.email?.toLowerCase() ?? '';
 	const { count: pendingInvites } = await supabase
 		.from('invitations')
@@ -70,6 +113,7 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 		displayName: profile?.display_name ?? null,
 		email: user.email ?? '',
 		trees,
+		anniversaries,
 		pendingInvites: pendingInvites ?? 0
 	};
 };

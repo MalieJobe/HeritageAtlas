@@ -32,6 +32,33 @@
 		</a>
 	{/if}
 
+	{#if data.anniversaries.length > 0}
+		<section class="rounded-lg border border-cream bg-cream/40 px-4 py-3">
+			<h2 class="mb-1 text-xs font-medium tracking-wide text-ink/55 uppercase">On this day</h2>
+			<ul class="flex flex-col gap-1 text-sm text-ink/80">
+				{#each data.anniversaries as a (a.personId + a.kind)}
+					<li>
+						<a
+							href={resolve('/trees/[treeId]/persons/[personId]', {
+								treeId: a.treeId,
+								personId: a.personId
+							})}
+							class="hover:text-ink hover:underline"
+						>
+							{#if a.kind === 'birth'}
+								✳ <span class="font-medium">{a.name}</span> would turn {a.years} (b. {a.year})
+							{:else}
+								† <span class="font-medium">{a.name}</span> — {a.years}
+								{a.years === 1 ? 'year' : 'years'} ago (d. {a.year})
+							{/if}
+							<span class="text-ink/45">· {a.treeName}</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		{#each data.trees as tree (tree.id)}
 			<a
