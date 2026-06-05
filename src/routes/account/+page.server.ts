@@ -42,5 +42,28 @@ export const actions: Actions = {
 		}
 
 		return { displayName, success: true };
+	},
+
+	changePassword: async ({ request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		const password = String((await request.formData()).get('password') ?? '');
+		if (password.length < 8) {
+			return fail(400, { passwordError: 'Password must be at least 8 characters.' });
+		}
+		const { error: authError } = await supabase.auth.updateUser({ password });
+		if (authError) return fail(400, { passwordError: authError.message });
+		return { passwordChanged: true };
+	},
+
+	deleteAccount: async ({ locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		// Service-role deletion happens in the delete-account Edge Function; this
+		// forwards the caller's JWT so it deletes only their own account.
+		const { error: fnError } = await supabase.functions.invoke('delete-account', {
+			method: 'POST'
+		});
+		if (fnError) return fail(400, { deleteError: fnError.message });
+		await supabase.auth.signOut();
+		redirect(303, '/');
 	}
 };
