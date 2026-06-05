@@ -136,28 +136,72 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - [x] **2.18 Play button** — rAF year sweep (years/second, consistent wall-clock), play/pause, 1×/2×/4×;
       stops at the range end and restarts from the start on replay.
 
-## Phase 3 — Historical map layer
+## Phase 3 — Landing, dashboard & onboarding
 
-- [ ] **3.1 Source historical-basemaps data** — fetch/vendor the GeoJSON border snapshots; document license.
-- [ ] **3.2 Snapshot index** — map slider year → nearest available snapshot year.
-- [ ] **3.3 Border layer render** — add boundary GeoJSON as a MapLibre layer beneath dots.
-- [ ] **3.4 Border layer swap** — swap snapshot as slider crosses snapshot years (smooth-ish).
-- [ ] **3.5 Country labels** — label historical entities (incl. vanished countries).
-- [ ] **3.6 Basemap toggle** — toggle modern basemap on/off under the historical borders.
-- [ ] **3.7 Styling pass** — period-appropriate border styling, opacity, fit with dots.
+The product is map-first and single-tree by default; collaboration stays but quiet.
+Flow: logged-out visitors get a marketing landing with a **live, interactive Windsor
+demo**; logging in lands on a **dashboard hub**; brand-new users go through a guided
+**"start with yourself"** wizard. (Decided 2026-06-05.)
 
-## Phase 4 — GEDCOM & polish
+- [ ] **3.1 Routing & redirects** — `/` serves the landing only when logged out; logged-in hits to
+      `/` redirect to `/dashboard`. Login/signup success → `/dashboard`; `/dashboard` with no tree →
+      `/start`. Header: logged-out = logo + **Log in** / **Sign up**; logged-in = logo → `/dashboard`
+      + account avatar menu (Account, Sign out). No header tree-switcher — switching happens on the
+      dashboard.
+- [ ] **3.2 Landing page (`/`)** — hero (big title "Map your family across time", subtitle, primary
+      CTA *Start your family tree* → signup, secondary *Explore the demo* → scroll to demo);
+      **How it works** (3 steps: add family → add places & dates → watch them move); **feature
+      highlights** (interactive tree, historical map, time-travel slider, GEDCOM import); **footer**
+      (about, privacy, contact). Responsive.
+- [ ] **3.3 Windsor demo dataset** — curate & seed a read-only tree of the House of Windsor, ~25–35
+      people from George V (b.1865) to today: births/deaths/residences with geocoded places. Seed
+      migration + script; documents sourced from public records.
+- [ ] **3.4 Public read access for the demo** — RLS policy so the single demo tree (and only it) is
+      readable without auth; an unauthenticated loader path that serves it to the landing. (General
+      per-tree public share links remain deferred.)
+- [ ] **3.5 Embedded live demo** — reuse the tree | map + timeline as a **read-only** embed on the
+      landing (pan/zoom/scrub/select work; no edit affordances; "Open profile" hidden). Lazy-load
+      MapLibre so it doesn't block first paint.
+- [ ] **3.6 Dashboard (`/dashboard`)** — tree card(s) with name, **mini-tree thumbnail**, **map
+      preview thumbnail**, and **stats** (people · generations · places · year span) + *Open*; quick
+      actions (Add person, Import GEDCOM [links to Phase 5 when ready], New tree); pending-invites
+      banner. No-tree state → redirect to `/start`.
+- [ ] **3.7 On-this-day widget** — surface today's birth/death anniversaries from event dates on the
+      dashboard ("Otto Brenner would turn 120 — b. 1906").
+- [ ] **3.8 Card thumbnails & stats** — derive the stat counts and render the mini-tree + static map
+      preview used on dashboard cards (and reusable elsewhere).
+- [ ] **3.9 Onboarding wizard (`/start`)** — guided: (0) name your family tree (default "My Family")
+      → create tree; (1) add yourself; (2) add parents; (3) add a partner; (4) add children; finish →
+      the tree view. Steps skippable; reuses person/relationship creation.
+- [ ] **3.10 Tree Settings → Members** — surface invitations/roles quietly under Settings (invite by
+      email, set role, remove); keep rename + danger zone; keep `/invitations` and the dashboard
+      invite banner.
+- [ ] **3.11 Tree header nav** — `← Dashboard` + tree name on the tree and person pages.
+- [ ] **3.12 Account page** — confirm `/account` covers email, change password, sign out, delete
+      account.
 
-- [ ] **4.1 GEDCOM import — parse** — parse GEDCOM 5.5.1/7.0 into an intermediate structure.
-- [ ] **4.2 GEDCOM import — map persons** — map individuals → persons (names, gender, notes).
-- [ ] **4.3 GEDCOM import — map relationships** — families → partnerships + parent-child links.
-- [ ] **4.4 GEDCOM import — map events/places** — events + place geocoding (queue manual review).
-- [ ] **4.5 GEDCOM import — fuzzy dates** — translate GEDCOM date qualifiers → our fuzzy-date shape.
-- [ ] **4.6 Import review UI** — preview/confirm before committing an import.
-- [ ] **4.7 GEDCOM export** — serialize a tree back to valid GEDCOM.
-- [ ] **4.8 Fuzzy-date input UX** — polished reusable date input (qualifier + precision).
-- [ ] **4.9 Empty states & onboarding** — first-run guidance, sample/demo tree option.
-- [ ] **4.10 Error handling & toasts** — consistent feedback for async actions.
+## Phase 4 — Historical map layer
+
+- [ ] **4.1 Source historical-basemaps data** — fetch/vendor the GeoJSON border snapshots; document license.
+- [ ] **4.2 Snapshot index** — map slider year → nearest available snapshot year.
+- [ ] **4.3 Border layer render** — add boundary GeoJSON as a MapLibre layer beneath dots.
+- [ ] **4.4 Border layer swap** — swap snapshot as slider crosses snapshot years (smooth-ish).
+- [ ] **4.5 Country labels** — label historical entities (incl. vanished countries).
+- [ ] **4.6 Basemap toggle** — toggle modern basemap on/off under the historical borders.
+- [ ] **4.7 Styling pass** — period-appropriate border styling, opacity, fit with dots.
+
+## Phase 5 — GEDCOM & polish
+
+- [ ] **5.1 GEDCOM import — parse** — parse GEDCOM 5.5.1/7.0 into an intermediate structure.
+- [ ] **5.2 GEDCOM import — map persons** — map individuals → persons (names, gender, notes).
+- [ ] **5.3 GEDCOM import — map relationships** — families → partnerships + parent-child links.
+- [ ] **5.4 GEDCOM import — map events/places** — events + place geocoding (queue manual review).
+- [ ] **5.5 GEDCOM import — fuzzy dates** — translate GEDCOM date qualifiers → our fuzzy-date shape.
+- [ ] **5.6 Import review UI** — preview/confirm before committing an import (reachable from the
+      dashboard "Import GEDCOM" action).
+- [ ] **5.7 GEDCOM export** — serialize a tree back to valid GEDCOM.
+- [ ] **5.8 Fuzzy-date input UX** — polished reusable date input (qualifier + precision).
+- [ ] **5.9 Error handling & toasts** — consistent feedback for async actions.
 
 ## Deferred (revisit later)
 
@@ -166,7 +210,7 @@ Architecture reference: see [DESIGN.md](DESIGN.md).
 - Photo galleries + event/place photo attachment.
 - Migration trail / path lines on the map.
 - Raster scanned-map overlays.
-- Public read-only share links.
+- General per-tree public read-only share links (beyond the single hard-coded demo tree in 3.4).
 
 ## Pre-launch checklist
 
