@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import MapThumbnail from '$lib/components/MapThumbnail.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -63,25 +64,42 @@
 		{#each data.trees as tree (tree.id)}
 			<a
 				href={resolve('/trees/[treeId]', { treeId: tree.id })}
-				class="group flex flex-col gap-3 rounded-xl border border-sage bg-white p-4 transition hover:border-clay hover:shadow-sm"
+				class="group flex flex-col overflow-hidden rounded-xl border border-sage bg-white transition hover:border-clay hover:shadow-sm"
 			>
-				<div class="flex items-start justify-between gap-2">
-					<h2 class="font-semibold text-ink group-hover:text-ink">{tree.name}</h2>
-					<span
-						class="shrink-0 rounded-full bg-sage/40 px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink/70 uppercase"
-					>
-						{tree.role}
-					</span>
+				<div class="h-24 w-full shrink-0">
+					<MapThumbnail points={tree.points} />
 				</div>
-				<p class="text-xs text-ink/60">
-					{stat(tree.peopleCount, 'person', 'people')} · {stat(
-						tree.placeCount,
-						'place',
-						'places'
-					)}{#if tree.yearSpan}
-						· {tree.yearSpan.min}–{tree.yearSpan.max}{/if}
-				</p>
-				<span class="mt-auto text-sm font-medium text-clay">Open →</span>
+				<div class="flex flex-1 flex-col gap-2 p-4">
+					<div class="flex items-start justify-between gap-2">
+						<h2 class="font-semibold text-ink">{tree.name}</h2>
+						<span
+							class="shrink-0 rounded-full bg-sage/40 px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink/70 uppercase"
+						>
+							{tree.role}
+						</span>
+					</div>
+					{#if tree.avatars.length > 0}
+						<div class="flex -space-x-2">
+							{#each tree.avatars as src, i (i)}
+								<img
+									{src}
+									alt=""
+									class="h-7 w-7 rounded-md border-2 border-white object-cover shadow-sm"
+								/>
+							{/each}
+						</div>
+					{/if}
+					<p class="text-xs text-ink/60">
+						{stat(tree.peopleCount, 'person', 'people')}{#if tree.generations > 0}
+							· {stat(tree.generations, 'generation', 'generations')}{/if} · {stat(
+							tree.placeCount,
+							'place',
+							'places'
+						)}{#if tree.yearSpan}
+							· {tree.yearSpan.min}–{tree.yearSpan.max}{/if}
+					</p>
+					<span class="mt-auto text-sm font-medium text-clay">Open →</span>
+				</div>
 			</a>
 		{/each}
 
