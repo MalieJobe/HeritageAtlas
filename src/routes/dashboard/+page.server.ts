@@ -40,6 +40,9 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 		}));
 	const treeIds = base.map((t) => t.id);
 
+	// A brand-new user with no trees goes straight into onboarding.
+	if (treeIds.length === 0) redirect(303, '/start');
+
 	// Per-tree stats + card visuals in a few batched queries (grouped in JS).
 	const peopleCount = new Map<string, number>();
 	const placeCount = new Map<string, number>();

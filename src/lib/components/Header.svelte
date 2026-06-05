@@ -20,7 +20,10 @@
 
 <header class="sticky top-0 z-10 border-b border-sage bg-paper/80 backdrop-blur">
 	<div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-		<a href={resolve('/')} class="flex items-center gap-2 font-semibold text-ink">
+		<a
+			href={user ? resolve('/dashboard') : resolve('/')}
+			class="flex items-center gap-2 font-semibold text-ink"
+		>
 			<span class="grid h-7 w-7 place-items-center rounded-md bg-ink text-sm font-bold text-paper">
 				H
 			</span>
@@ -28,7 +31,6 @@
 		</a>
 		<nav class="flex items-center gap-3 text-sm">
 			{#if user}
-				<a href={resolve('/trees')} class="font-medium text-ink/70 hover:text-ink"> Trees </a>
 				<div class="relative" bind:this={menuEl}>
 					<button
 						type="button"
@@ -74,11 +76,12 @@
 					{/if}
 				</div>
 			{:else}
+				<a href={resolve('/auth/login')} class="font-medium text-ink/70 hover:text-ink"> Log in </a>
 				<a
-					href={resolve('/auth/login')}
+					href={resolve('/auth/signup')}
 					class="rounded-md bg-clay px-3 py-1 font-medium text-ink hover:bg-clay/80"
 				>
-					Sign in
+					Sign up
 				</a>
 			{/if}
 		</nav>
