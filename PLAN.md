@@ -213,6 +213,14 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 - Migration trail / path lines on the map.
 - Raster scanned-map overlays.
 - General per-tree public read-only share links (beyond the single hard-coded demo tree in 3.4).
+- **Perceived performance / snappiness** — CRUD interactions feel slow because each one is a full
+  Supabase round-trip + reload. Load a tree's graph/map data once and keep it in an in-browser store,
+  serving subsequent navigations/interactions from memory and applying edits optimistically (revalidate
+  in the background). Goal: instant-feeling tree/map/timeline interaction.
+- **Internationalization (i18n)** — extract UI strings and support multiple languages (and locale-aware
+  date formatting) at some point.
+- **Testing** — unit tests (pure logic: fuzzyDate, positionResolver, markerLayout, layout helpers) and
+  end-to-end tests (Playwright: auth, onboarding, add-person, timeline scrub) with a CI gate.
 
 ## Pre-launch checklist
 
