@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import type { User } from '@supabase/supabase-js';
 
 	let { user = null }: { user?: User | null } = $props();
+
+	// When a tree/person page is loaded, its data carries the current tree — show it
+	// as a breadcrumb (the logo already links back to the dashboard).
+	let tree = $derived(page.data?.tree as { id: string; name: string } | undefined);
 
 	let menuOpen = $state(false);
 	let menuEl = $state<HTMLDivElement>();
@@ -29,6 +34,15 @@
 			</span>
 			HeritageAtlas
 		</a>
+		{#if user && tree}
+			<span class="text-ink/30">/</span>
+			<a
+				href={resolve('/trees/[treeId]', { treeId: tree.id })}
+				class="mr-auto ml-2 min-w-0 truncate text-sm font-medium text-ink/70 hover:text-ink"
+			>
+				{tree.name}
+			</a>
+		{/if}
 		<nav class="flex items-center gap-3 text-sm">
 			{#if user}
 				<div class="relative" bind:this={menuEl}>
