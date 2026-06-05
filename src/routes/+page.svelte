@@ -1,5 +1,18 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import FamilyGraph from '$lib/components/FamilyGraph.svelte';
+	import MapView from '$lib/components/MapView.svelte';
+	import Timeline from '$lib/components/Timeline.svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+
+	// Live read-only demo state (the Windsor tree).
+	let demo = $derived(data.demo);
+	const fallbackMax = new Date().getFullYear();
+	let demoYear = $state(untrack(() => demo?.timeline?.max ?? fallbackMax));
+	let demoSelected = $state<string | null>(null);
 
 	const steps = [
 		['Add your family', 'Add people and link parents, partners, and children into a tree.'],
@@ -54,11 +67,43 @@
 				A real, interactive tree — scrub the years and watch the royals move across Europe.
 			</p>
 		</div>
-		<div
-			class="grid h-96 place-items-center rounded-xl border border-dashed border-sage bg-paper text-sm text-ink/40"
-		>
-			Interactive demo
-		</div>
+		{#if demo}
+			<div class="overflow-hidden rounded-xl border border-sage bg-paper shadow-sm">
+				<div class="flex h-96">
+					<div class="min-w-0 flex-1 border-r border-sage">
+						<FamilyGraph
+							graph={demo.graph}
+							treeId={demo.tree.id}
+							selectedId={demoSelected}
+							year={demoYear}
+							fill
+							readonly
+							onselect={(id) => (demoSelected = id)}
+						/>
+					</div>
+					<div class="min-w-0 flex-1">
+						<MapView
+							persons={demo.map.persons}
+							year={demoYear}
+							selectedId={demoSelected}
+							height={null}
+							onselect={(id) => (demoSelected = id)}
+						/>
+					</div>
+				</div>
+				<Timeline
+					bind:year={demoYear}
+					defaultMin={demo.timeline?.min ?? 1900}
+					defaultMax={demo.timeline?.max ?? fallbackMax}
+				/>
+			</div>
+		{:else}
+			<div
+				class="grid h-96 place-items-center rounded-xl border border-dashed border-sage bg-paper text-sm text-ink/40"
+			>
+				Demo unavailable
+			</div>
+		{/if}
 	</section>
 
 	<!-- How it works -->

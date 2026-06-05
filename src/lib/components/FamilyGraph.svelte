@@ -18,7 +18,8 @@
 		selectedId = null,
 		onselect,
 		year = null,
-		fill = false
+		fill = false,
+		readonly = false
 	}: {
 		graph: GraphData;
 		treeId: string;
@@ -31,6 +32,8 @@
 		year?: number | null;
 		/** Fill the parent's height instead of the standalone fixed height. */
 		fill?: boolean;
+		/** Demo mode: keep selection/centering but hide the "open profile" panel. */
+		readonly?: boolean;
 	} = $props();
 
 	let controlled = $derived(onselect !== undefined);
@@ -355,7 +358,7 @@
 	{/if}
 
 	<!-- Selected-person detail panel: the one place to open a profile from the graph. -->
-	{#if selected}
+	{#if selected && !readonly}
 		<div
 			class="absolute top-3 right-3 w-64 rounded-lg border border-sage bg-white/95 p-4 shadow-md backdrop-blur"
 		>
