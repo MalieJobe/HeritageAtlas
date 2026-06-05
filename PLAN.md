@@ -145,17 +145,19 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 
 - [ ] **3.1 Routing & redirects** — `/` serves the landing only when logged out; logged-in hits to
       `/` redirect to `/dashboard`. Login/signup success → `/dashboard`; `/dashboard` with no tree →
-      `/start`. Header: logged-out = logo + **Log in** / **Sign up**; logged-in = logo → `/dashboard`
-      + account avatar menu (Account, Sign out). No header tree-switcher — switching happens on the
+      `/start`. Header: logged-out = logo + **Log in** / **Sign up**; logged-in = logo → `/dashboard` + account avatar menu (Account, Sign out). No header tree-switcher — switching happens on the
       dashboard.
 - [ ] **3.2 Landing page (`/`)** — hero (big title "Map your family across time", subtitle, primary
-      CTA *Start your family tree* → signup, secondary *Explore the demo* → scroll to demo);
+      CTA _Start your family tree_ → signup, secondary _Explore the demo_ → scroll to demo);
       **How it works** (3 steps: add family → add places & dates → watch them move); **feature
       highlights** (interactive tree, historical map, time-travel slider, GEDCOM import); **footer**
       (about, privacy, contact). Responsive.
-- [ ] **3.3 Windsor demo dataset** — curate & seed a read-only tree of the House of Windsor, ~25–35
-      people from George V (b.1865) to today: births/deaths/residences with geocoded places. Seed
-      migration + script; documents sourced from public records.
+- [x] **3.3 Windsor demo dataset** — seeded tree `windsor`: 34 people (George V/Battenberg branches →
+      Prince George), 143 events incl. rich residence timelines for the travelers (Philip, the Windsors'
+      exile, Mountbatten, the Sussexes' move to California), 41 geocoded places. Generated from
+      `scripts/windsor-demo/build.mjs` → migration `0016`. 29 free-licensed portraits (PD/CC0/CC BY/
+      BY-SA, verified per-file) in `static/demo/portraits/` + `CREDITS.md`; the 5 youngest use initials.
+      Note: the public demo (3.5) must surface the CC-BY/BY-SA attributions.
 - [ ] **3.4 Public read access for the demo** — RLS policy so the single demo tree (and only it) is
       readable without auth; an unauthenticated loader path that serves it to the landing. (General
       per-tree public share links remain deferred.)
@@ -163,7 +165,7 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
       landing (pan/zoom/scrub/select work; no edit affordances; "Open profile" hidden). Lazy-load
       MapLibre so it doesn't block first paint.
 - [ ] **3.6 Dashboard (`/dashboard`)** — tree card(s) with name, **mini-tree thumbnail**, **map
-      preview thumbnail**, and **stats** (people · generations · places · year span) + *Open*; quick
+      preview thumbnail**, and **stats** (people · generations · places · year span) + _Open_; quick
       actions (Add person, Import GEDCOM [links to Phase 5 when ready], New tree); pending-invites
       banner. No-tree state → redirect to `/start`.
 - [ ] **3.7 On-this-day widget** — surface today's birth/death anniversaries from event dates on the

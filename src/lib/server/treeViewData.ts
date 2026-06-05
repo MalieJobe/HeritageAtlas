@@ -74,8 +74,10 @@ export async function loadTreeViewData(
 
 	// Resolve stored photo paths to usable URLs: external URLs (seeded demo images)
 	// pass through; bucket paths are batch-signed in one round trip.
+	// http(s) URLs and root-relative public paths (e.g. the seeded demo portraits in
+	// /static) are used as-is; everything else is a Storage bucket path to sign.
 	const isExternal = (path: string | null | undefined): boolean =>
-		!!path && /^https?:\/\//.test(path);
+		!!path && /^(https?:\/\/|\/)/.test(path);
 	const photoPaths = persons
 		.map((p) => p.profile_photo_path)
 		.filter((path): path is string => Boolean(path) && !isExternal(path));

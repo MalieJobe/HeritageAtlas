@@ -18,7 +18,9 @@ function orderedPair(a: string, b: string): [string, string] {
 	return a < b ? [a, b] : [b, a];
 }
 
-const isExternal = (p: string | null | undefined) => !!p && /^https?:\/\//.test(p);
+// http(s) URLs and root-relative public paths (seeded demo portraits) are used
+// as-is; everything else is a Storage bucket path to sign.
+const isExternal = (p: string | null | undefined) => !!p && /^(https?:\/\/|\/)/.test(p);
 
 /** Keep persons.profile_photo_path pointing at the first gallery photo (the one
  *  shown in the trees/map). Called after any photo add/delete/reorder. */
