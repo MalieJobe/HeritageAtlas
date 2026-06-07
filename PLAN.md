@@ -259,6 +259,13 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 
 ## Pre-launch checklist
 
+- [ ] **Legal: payments & data privacy (Germany)** — research what's required to accept
+      payments and operate legally in Germany: business/tax setup (e.g. Kleinunternehmer
+      vs. regular, VAT/USt, invoicing rules), a payment provider's terms (Stripe/PayPal/
+      Paddle as merchant-of-record), required legal pages (Impressum, AGB, Widerrufs-
+      belehrung), and GDPR/DSGVO compliance for the genealogy data we store (privacy
+      policy, legal basis, processor agreements/AVV with Supabase, data-subject rights,
+      data minimisation, hosting/transfer location). Likely needs professional/legal advice.
 - [ ] **Re-enable "Confirm email"** in Supabase (Authentication → Providers → Email).
       It was turned off during development for password sign-up without SMTP; turn it
       back on (and configure SMTP) before any real users sign up.
