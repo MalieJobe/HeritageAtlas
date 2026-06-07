@@ -244,22 +244,44 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 > Round-trip is covered by Vitest against the vendored gold-standard `royal92.ged` (3010 individuals)
 > — see `src/lib/gedcom/gedcom.test.ts`. This addresses the GEDCOM part of the Deferred "Testing" item.
 
+## Phase 6 — Sharing, safety & tests
+
+- [x] **6.1 Ancestry-loop prevention** — `wouldCreateCycle` guard in `linkParentChild` rejects
+      parent/child links that would make someone their own ancestor (e.g. your mother as your own
+      child); surfaced as a clear error from add-parent/child/sibling. Unit-tested.
+- [x] **6.2 Password-protected public share links** — owners publish a tree behind an unguessable
+      token + a password (Settings → Public share link). The password is hashed and checked inside
+      SECURITY DEFINER pgcrypto RPCs (`set_tree_share`/`get_shared_tree`), so the public anon key
+      can't read a shared tree without it. Public `/share/[token]` route gates on the password
+      (httpOnly cookie remembers access) then renders a read-only tree/map/timeline; photos hidden
+      for privacy. Migration `0018`.
+- [x] **6.3 Account actions fix** — `/account` mixed a `default` action with named actions, which
+      500'd every account action (profile update, password change, account deletion). Renamed to
+      `updateProfile`; deletion verified end-to-end.
+- [x] **6.4 Test suites** — Vitest unit tests (GEDCOM round-trip on royal92, fuzzy dates, cycle
+      prevention) + a Playwright e2e suite against a seeded login (person creation, recursion
+      rejection, password-protected sharing, account-action regression). Scripts: `pnpm test`,
+      `pnpm e2e`.
+
 ## Deferred (revisit later)
 
-- Living-person privacy redaction (needed if public sharing is added).
+- Living-person privacy redaction (the password-protected share view hides photos; full redaction
+  of living people's facts is still open).
 - Source citations on facts.
 - Photo galleries + event/place photo attachment.
 - Migration trail / path lines on the map.
 - Raster scanned-map overlays.
-- General per-tree public read-only share links (beyond the single hard-coded demo tree in 3.4).
+- Show private photos on shared trees (currently initials only — anon can't sign private bucket URLs).
 - **Perceived performance / snappiness** — CRUD interactions feel slow because each one is a full
   Supabase round-trip + reload. Load a tree's graph/map data once and keep it in an in-browser store,
   serving subsequent navigations/interactions from memory and applying edits optimistically (revalidate
   in the background). Goal: instant-feeling tree/map/timeline interaction.
 - **Internationalization (i18n)** — extract UI strings and support multiple languages (and locale-aware
   date formatting) at some point.
-- **Testing** — unit tests (pure logic: fuzzyDate, positionResolver, markerLayout, layout helpers) and
-  end-to-end tests (Playwright: auth, onboarding, add-person, timeline scrub) with a CI gate.
+- **Testing (expand)** — core suites now exist (see 6.4: Vitest for GEDCOM/fuzzy/cycle; Playwright
+  e2e for persons/recursion/sharing/account). Still worth adding: positionResolver/markerLayout/layout
+  unit tests, onboarding + timeline-scrub e2e, and a CI gate that runs `pnpm test` (and ideally
+  `pnpm e2e` against a seeded account).
 - **Household / co-residence synchronization** — people who live together usually move together, so
   re-entering identical residence timelines for each of them is tedious. Idea: let a set of people
   form a "household" (e.g. Mom + Dad + the youngest sibling still at home — but _not_ the other,
