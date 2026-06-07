@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { personName } from '$lib/person';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import EventRowFields from '$lib/components/EventRowFields.svelte';
 	import MiniFamily from '$lib/components/MiniFamily.svelte';
+	import RelationAdder from '$lib/components/RelationAdder.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -61,36 +63,71 @@
 
 	let relOpen = $state(false);
 	let confirmingDelete = $state(false);
+
+	// --- Relationship management (3.5b) ---
+	let relMessage = $state<string | null>(null);
+	// After adding a 2nd parent we may ask whether the two parents are partners.
+	let partnerPrompt = $state<{ aId: string; bId: string; aName: string; bName: string } | null>(
+		null
+	);
+	// A newly created relative to navigate to once any follow-up prompt is resolved.
+	let pendingJumpId = $state<string | null>(null);
+	// Two-step confirm for removing a link, keyed by `${kind}:${id}`.
+	let confirmingRemove = $state<string | null>(null);
+	// Child section: whether the co-parent is being created vs picked from existing.
+	let coCreate = $state(false);
+
+	function personUrl(id: string) {
+		return resolve('/trees/[treeId]/persons/[personId]', { treeId: data.tree.id, personId: id });
+	}
+
+	function jumpTo(id: string) {
+		relOpen = false;
+		goto(personUrl(id));
+	}
+
+	function closeRel() {
+		relOpen = false;
+		relMessage = null;
+		partnerPrompt = null;
+		pendingJumpId = null;
+		confirmingRemove = null;
+		coCreate = false;
+	}
+
+	// Handles the data returned by every RelationAdder submit: surface errors, raise
+	// the "are these parents partners?" prompt, and jump to a freshly created relative.
+	function handleRelResult(result: Record<string, unknown> | undefined) {
+		relMessage = (result?.relError as string) ?? null;
+		if (result?.relError) return;
+		coCreate = false;
+		const createdId = (result?.createdId as string) ?? null;
+		const prompt = result?.promptPartners as typeof partnerPrompt;
+		if (prompt) {
+			partnerPrompt = prompt;
+			pendingJumpId = createdId; // jump (if any) happens after the prompt is answered
+			return;
+		}
+		if (createdId) jumpTo(createdId);
+	}
+
+	// After the partner prompt is answered (linked or dismissed), continue any pending jump.
+	function afterPartnerPrompt() {
+		partnerPrompt = null;
+		const id = pendingJumpId;
+		pendingJumpId = null;
+		if (id) jumpTo(id);
+	}
+
+	const promptEnhance = () => {
+		return async ({ update }: { update: (opts?: { reset?: boolean }) => Promise<void> }) => {
+			await update({ reset: false });
+			afterPartnerPrompt();
+		};
+	};
 </script>
 
 <svelte:head><title>{name} · HeritageAtlas</title></svelte:head>
-
-{#snippet addForm(action: string, verb: string, withStatus = false)}
-	{#if data.candidates.length > 0}
-		<form method="POST" {action} use:enhance class="flex flex-wrap items-center gap-2">
-			<select name="personId" required class="{inputClass} flex-1">
-				<option value="" disabled selected>Choose a person…</option>
-				{#each data.candidates as candidate (candidate.id)}
-					<option value={candidate.id}>{candidate.name}</option>
-				{/each}
-			</select>
-			{#if withStatus}
-				<select name="status" class={inputClass}>
-					<option value="current">Current</option>
-					<option value="former">Former</option>
-				</select>
-			{/if}
-			<button
-				type="submit"
-				class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
-			>
-				{verb}
-			</button>
-		</form>
-	{:else}
-		<p class="text-sm text-ink/45">Add more people to the tree to link them here.</p>
-	{/if}
-{/snippet}
 
 {#snippet relRow(rel: { id: string; name: string })}
 	<a
@@ -99,11 +136,36 @@
 	>
 {/snippet}
 
-{#snippet removeButton(action: string, idName: string, idValue: string)}
-	<form method="POST" {action} use:enhance>
-		<input type="hidden" name={idName} value={idValue} />
-		<button type="submit" class="text-xs text-ink/40 hover:text-red-600">Remove</button>
-	</form>
+<!-- Two-step confirm before removing a link (3.5b). `token` is unique per row. -->
+{#snippet removeButton(action: string, idName: string, idValue: string, token: string)}
+	{#if confirmingRemove === token}
+		<form
+			method="POST"
+			{action}
+			use:enhance={() =>
+				async ({ update }) => {
+					await update({ reset: false });
+					confirmingRemove = null;
+				}}
+			class="flex items-center gap-1.5"
+		>
+			<input type="hidden" name={idName} value={idValue} />
+			<button type="submit" class="text-xs font-medium text-red-600 hover:text-red-700"
+				>Remove</button
+			>
+			<button
+				type="button"
+				onclick={() => (confirmingRemove = null)}
+				class="text-xs text-ink/40 hover:text-ink">Cancel</button
+			>
+		</form>
+	{:else}
+		<button
+			type="button"
+			onclick={() => (confirmingRemove = token)}
+			class="text-xs text-ink/40 hover:text-red-600">Remove</button
+		>
+	{/if}
 {/snippet}
 
 <div class="flex flex-col gap-6">
@@ -347,7 +409,7 @@
 		class="fixed inset-0 z-50 grid place-items-center bg-ink/30 p-4"
 		role="presentation"
 		onclick={(e) => {
-			if (e.target === e.currentTarget) relOpen = false;
+			if (e.target === e.currentTarget) closeRel();
 		}}
 	>
 		<div
@@ -357,14 +419,41 @@
 				<h2 class="text-base font-semibold text-ink">Relationships</h2>
 				<button
 					type="button"
-					onclick={() => (relOpen = false)}
+					onclick={closeRel}
 					class="text-ink/40 hover:text-ink"
 					aria-label="Close">✕</button
 				>
 			</div>
 
-			{#if form?.relError}
-				<p class="mb-2 text-sm text-red-600">{form.relError}</p>
+			{#if relMessage}
+				<p class="mb-2 text-sm text-red-600">{relMessage}</p>
+			{/if}
+
+			<!-- After a second parent is added, ask whether the two parents are a couple. -->
+			{#if partnerPrompt}
+				<div class="mb-3 rounded-md border border-clay bg-cream/60 p-3 text-sm">
+					<p class="text-ink">
+						Are <span class="font-semibold">{partnerPrompt.aName}</span> and
+						<span class="font-semibold">{partnerPrompt.bName}</span> partners?
+					</p>
+					<div class="mt-2 flex gap-2">
+						<form method="POST" action="?/linkPartners" use:enhance={promptEnhance}>
+							<input type="hidden" name="aId" value={partnerPrompt.aId} />
+							<input type="hidden" name="bId" value={partnerPrompt.bId} />
+							<button
+								type="submit"
+								class="rounded-md bg-clay px-3 py-1 text-xs font-medium text-ink hover:bg-clay/80"
+								>Yes, link them</button
+							>
+						</form>
+						<button
+							type="button"
+							onclick={afterPartnerPrompt}
+							class="rounded-md border border-sage px-3 py-1 text-xs text-ink/70 hover:bg-cream"
+							>No</button
+						>
+					</div>
+				</div>
 			{/if}
 
 			<div class="flex flex-col gap-5">
@@ -374,10 +463,17 @@
 					{#each data.parents as p (p.linkId)}
 						<div class="flex items-center gap-3 text-sm">
 							{@render relRow(p)}
-							{@render removeButton('?/removeLink', 'linkId', p.linkId)}
+							{@render removeButton('?/removeLink', 'linkId', p.linkId, `parent:${p.linkId}`)}
 						</div>
 					{/each}
-					{@render addForm('?/addParent', 'Add parent')}
+					<RelationAdder
+						action="?/addParent"
+						verb="Add parent"
+						noun="parent"
+						candidates={data.candidates}
+						places={data.places}
+						onresult={handleRelResult}
+					/>
 				</div>
 
 				<!-- Partners -->
@@ -398,10 +494,33 @@
 									>{p.status === 'former' ? 'Mark current' : 'Mark former'}</button
 								>
 							</form>
-							{@render removeButton('?/removePartnership', 'partnershipId', p.partnershipId)}
+							{@render removeButton(
+								'?/removePartnership',
+								'partnershipId',
+								p.partnershipId,
+								`partnership:${p.partnershipId}`
+							)}
 						</div>
 					{/each}
-					{@render addForm('?/addPartner', 'Add partner', true)}
+					<RelationAdder
+						action="?/addPartner"
+						verb="Add partner"
+						noun="partner"
+						candidates={data.candidates}
+						places={data.places}
+						requireExtra
+						onresult={handleRelResult}
+					>
+						{#snippet extra()}
+							<label class="flex items-center gap-2 text-xs font-medium text-ink/70">
+								Status
+								<select name="status" class={inputClass}>
+									<option value="current">Current</option>
+									<option value="former">Former</option>
+								</select>
+							</label>
+						{/snippet}
+					</RelationAdder>
 				</div>
 
 				<!-- Children -->
@@ -410,33 +529,93 @@
 					{#each data.children as c (c.linkId)}
 						<div class="flex items-center gap-3 text-sm">
 							{@render relRow(c)}
-							{@render removeButton('?/removeLink', 'linkId', c.linkId)}
+							{@render removeButton('?/removeLink', 'linkId', c.linkId, `child:${c.linkId}`)}
 						</div>
 					{/each}
-					{@render addForm('?/addChild', 'Add child')}
-					<a
-						href={resolve('/trees/[treeId]/persons/[personId]/children/new', {
-							treeId: data.tree.id,
-							personId: person.id
-						})}
-						class="text-xs font-medium text-ink/60 underline underline-offset-2 hover:text-ink"
+					<RelationAdder
+						action="?/addChild"
+						verb="Add child"
+						noun="child"
+						candidates={data.candidates}
+						places={data.places}
+						defaultPlace={data.defaultPlace}
+						requireExtra
+						onresult={handleRelResult}
 					>
-						+ New child (creates a person, birthplace from {name})
-					</a>
+						{#snippet extra()}
+							<div class="flex flex-col gap-1.5 rounded-md border border-sage/60 bg-cream/30 p-2">
+								<span class="text-xs font-medium text-ink/70">Other parent</span>
+								{#if coCreate}
+									<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+										<input
+											name="co_given_names"
+											placeholder="Given name(s)"
+											class="{inputClass} sm:col-span-1"
+										/>
+										<input
+											name="co_surname"
+											placeholder="Surname"
+											class="{inputClass} sm:col-span-1"
+										/>
+										<select name="co_sex" class="{inputClass} sm:col-span-1">
+											<option value="">Sex…</option>
+											<option value="female">Female</option>
+											<option value="male">Male</option>
+											<option value="other">Other</option>
+										</select>
+									</div>
+									<button
+										type="button"
+										onclick={() => (coCreate = false)}
+										class="self-start text-xs text-ink/50 hover:text-ink"
+										>Pick an existing person instead</button
+									>
+								{:else}
+									<select name="coparent_id" class={inputClass}>
+										<option value="">None / unknown</option>
+										{#each data.allPeople as ap (ap.id)}
+											<option value={ap.id}>{ap.name}</option>
+										{/each}
+									</select>
+									<button
+										type="button"
+										onclick={() => (coCreate = true)}
+										class="self-start text-xs text-ink/50 hover:text-ink"
+										>＋ Create a new co-parent</button
+									>
+								{/if}
+							</div>
+						{/snippet}
+					</RelationAdder>
 				</div>
 
-				<!-- Siblings (read-only — they're derived from shared parents) -->
-				{#if data.siblings.length > 0}
-					<div class="flex flex-col gap-2">
-						<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">Siblings</h3>
-						{#each data.siblings as s (s.id)}
-							<div class="flex items-center gap-3 text-sm">{@render relRow(s)}</div>
-						{/each}
+				<!-- Siblings — linked through shared parents. -->
+				<div class="flex flex-col gap-2">
+					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">Siblings</h3>
+					{#each data.siblings as s (s.id)}
+						<div class="flex items-center gap-3 text-sm">{@render relRow(s)}</div>
+					{/each}
+					{#if data.parents.length === 0}
 						<p class="text-xs text-ink/45">
-							Siblings come from shared parents — add a parent to connect them.
+							Add a parent first — siblings are linked through shared parents.
 						</p>
-					</div>
-				{/if}
+					{:else}
+						<RelationAdder
+							action="?/addSibling"
+							verb="Add sibling"
+							noun="sibling"
+							candidates={data.candidates}
+							places={data.places}
+							defaultPlace={data.defaultPlace}
+							onresult={handleRelResult}
+						/>
+						<p class="text-xs text-ink/45">
+							A new sibling is linked to {data.parents.length === 1
+								? 'your parent'
+								: 'all your parents'} automatically.
+						</p>
+					{/if}
+				</div>
 			</div>
 		</div>
 	</div>

@@ -61,6 +61,88 @@ function duplicateMessage(err: { code?: string; message: string }): string {
 	return err.message;
 }
 
+type DB = Parameters<typeof requireEditableTree>[0];
+
+/**
+ * Create a person from the relationship "create new" quick-add fields (name, sex)
+ * and, if a date/place was given, an accompanying birth event. Returns the new id
+ * or a user-facing error message. Used by the add-parent/partner/child/sibling
+ * actions so a relative can be created inline (3.5b).
+ */
+async function createPerson(
+	supabase: DB,
+	treeId: string,
+	formData: FormData
+): Promise<{ id: string } | { error: string }> {
+	const values = {
+		given_names: field(formData, 'given_names'),
+		surname: field(formData, 'surname'),
+		birth_surname: field(formData, 'birth_surname'),
+		nickname: field(formData, 'nickname'),
+		sex: field(formData, 'sex')
+	};
+	if (!values.given_names && !values.surname && !values.nickname) {
+		return { error: 'Enter at least a given name, surname, or nickname.' };
+	}
+
+	// Validate the (optional) birth event up front so a bad place/date fails before
+	// we create the person.
+	let birth;
+	try {
+		birth = await parseEventForm(supabase, treeId, formData);
+	} catch (e) {
+		return { error: e instanceof Error ? e.message : 'Could not save the birthplace.' };
+	}
+
+	const { data: created, error: dbError } = await supabase
+		.from('persons')
+		.insert({ tree_id: treeId, ...values })
+		.select('id')
+		.single();
+	if (dbError || !created) return { error: dbError?.message ?? 'Could not create the person.' };
+
+	if (birth.type === 'birth' && (birth.event_date || birth.place_id)) {
+		await supabase.from('events').insert({ tree_id: treeId, person_id: created.id, ...birth });
+	}
+	return { id: created.id };
+}
+
+/** Insert a parent→child link, treating an existing identical link as success. */
+async function linkParentChild(
+	supabase: DB,
+	treeId: string,
+	parentId: string,
+	childId: string
+): Promise<string | null> {
+	const { error: dbError } = await supabase
+		.from('parent_child_links')
+		.insert({ tree_id: treeId, parent_id: parentId, child_id: childId });
+	if (dbError && dbError.code !== '23505') return dbError.message;
+	return null;
+}
+
+/** Ensure a (current) partnership exists between two people; no-op if already linked. */
+async function ensurePartnership(
+	supabase: DB,
+	treeId: string,
+	x: string,
+	y: string
+): Promise<void> {
+	const [partner_a, partner_b] = orderedPair(x, y);
+	const { data: existing } = await supabase
+		.from('partnerships')
+		.select('id')
+		.eq('tree_id', treeId)
+		.eq('partner_a', partner_a)
+		.eq('partner_b', partner_b)
+		.maybeSingle();
+	if (!existing) {
+		await supabase
+			.from('partnerships')
+			.insert({ tree_id: treeId, partner_a, partner_b, status: 'current' });
+	}
+}
+
 export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
 	if (!user) redirect(303, '/auth/login');
 
@@ -236,6 +318,14 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.map((p) => ({ id: p.id, name: personName(p) }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 
+	// Everyone except this person — used by the "other parent" (co-parent) picker
+	// when adding a child, where any existing person (not just unconnected ones) is
+	// a valid choice.
+	const allPeople = all
+		.filter((p) => p.id !== personId)
+		.map((p) => ({ id: p.id, name: personName(p) }))
+		.sort((a, b) => a.name.localeCompare(b.name));
+
 	// Events — birth/residence/death facts, shown as a table sorted by date; each
 	// row also carries what the inline edit form needs.
 	const events = (eventRows ?? [])
@@ -328,6 +418,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		children,
 		siblings,
 		candidates,
+		allPeople,
 		events,
 		hasBirth,
 		defaultType,
@@ -475,26 +566,41 @@ export const actions: Actions = {
 		redirect(303, `/trees/${params.treeId}`);
 	},
 
+	// Resolve the relative for an add action: an existing person (mode=existing) or a
+	// freshly created one (mode=create). Returns the id + whether it was created.
+	// (Inline so each action shares the create/validate flow — 3.5b.)
+
 	addPartner: async ({ params, request, locals: { supabase, user } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
 		const formData = await request.formData();
-		const partnerId = String(formData.get('personId') ?? '');
-		const status = String(formData.get('status') ?? 'current');
-		if (!partnerId || partnerId === params.personId) {
-			return fail(400, { relError: 'Choose a different person to link as a partner.' });
+		const status = String(formData.get('status') ?? 'current') === 'former' ? 'former' : 'current';
+
+		let partnerId: string;
+		let createdId: string | null = null;
+		if (String(formData.get('mode')) === 'create') {
+			const res = await createPerson(supabase, params.treeId, formData);
+			if ('error' in res) return fail(400, { relError: res.error });
+			partnerId = res.id;
+			createdId = res.id;
+		} else {
+			partnerId = String(formData.get('personId') ?? '');
+			if (!partnerId || partnerId === params.personId) {
+				return fail(400, { relError: 'Choose a different person to link as a partner.' });
+			}
 		}
 
 		const [partner_a, partner_b] = orderedPair(params.personId, partnerId);
-		const { error: dbError } = await supabase.from('partnerships').insert({
-			tree_id: params.treeId,
-			partner_a,
-			partner_b,
-			status: status === 'former' ? 'former' : 'current'
-		});
-		if (dbError) return fail(400, { relError: dbError.message });
-		return { ok: true };
+		const { error: dbError } = await supabase
+			.from('partnerships')
+			.insert({ tree_id: params.treeId, partner_a, partner_b, status });
+		if (dbError) {
+			return fail(400, {
+				relError: dbError.code === '23505' ? 'They are already partners.' : dbError.message
+			});
+		}
+		return { ok: true, createdId };
 	},
 
 	addParent: async ({ params, request, locals: { supabase, user } }) => {
@@ -502,20 +608,54 @@ export const actions: Actions = {
 		await requireEditableTree(supabase, user.id, params.treeId);
 
 		const formData = await request.formData();
-		const parentId = String(formData.get('personId') ?? '');
-		if (!parentId || parentId === params.personId) {
-			return fail(400, { relError: 'Choose a different person to link as a parent.' });
+		let parentId: string;
+		let createdId: string | null = null;
+		if (String(formData.get('mode')) === 'create') {
+			const res = await createPerson(supabase, params.treeId, formData);
+			if ('error' in res) return fail(400, { relError: res.error });
+			parentId = res.id;
+			createdId = res.id;
+		} else {
+			parentId = String(formData.get('personId') ?? '');
+			if (!parentId || parentId === params.personId) {
+				return fail(400, { relError: 'Choose a different person to link as a parent.' });
+			}
 		}
 
-		const { error: dbError } = await supabase
+		const linkErr = await linkParentChild(supabase, params.treeId, parentId, params.personId);
+		if (linkErr) return fail(400, { relError: linkErr });
+
+		// If this person now has exactly two parents who aren't yet partners, offer to
+		// link them as a couple (the client asks "Are X and Y partners?").
+		const { data: pls } = await supabase
 			.from('parent_child_links')
-			.insert({ tree_id: params.treeId, parent_id: parentId, child_id: params.personId });
-		if (dbError) {
-			return fail(400, {
-				relError: dbError.code === '23505' ? 'That parent is already linked.' : dbError.message
-			});
+			.select('parent_id')
+			.eq('tree_id', params.treeId)
+			.eq('child_id', params.personId);
+		const parentIds = [...new Set((pls ?? []).map((l) => l.parent_id))];
+		let promptPartners: { aId: string; bId: string; aName: string; bName: string } | null = null;
+		if (parentIds.length === 2) {
+			const [a, b] = orderedPair(parentIds[0], parentIds[1]);
+			const { data: existing } = await supabase
+				.from('partnerships')
+				.select('id')
+				.eq('tree_id', params.treeId)
+				.eq('partner_a', a)
+				.eq('partner_b', b)
+				.maybeSingle();
+			if (!existing) {
+				const { data: ppl } = await supabase
+					.from('persons')
+					.select('id, given_names, surname, nickname')
+					.in('id', [a, b]);
+				const nameOf = (id: string) => {
+					const p = (ppl ?? []).find((x) => x.id === id);
+					return p ? personName(p) : 'parent';
+				};
+				promptPartners = { aId: a, bId: b, aName: nameOf(a), bName: nameOf(b) };
+			}
 		}
-		return { ok: true };
+		return { ok: true, createdId, promptPartners };
 	},
 
 	addChild: async ({ params, request, locals: { supabase, user } }) => {
@@ -523,19 +663,101 @@ export const actions: Actions = {
 		await requireEditableTree(supabase, user.id, params.treeId);
 
 		const formData = await request.formData();
-		const childId = String(formData.get('personId') ?? '');
-		if (!childId || childId === params.personId) {
-			return fail(400, { relError: 'Choose a different person to link as a child.' });
+		let childId: string;
+		let createdId: string | null = null;
+		if (String(formData.get('mode')) === 'create') {
+			const res = await createPerson(supabase, params.treeId, formData);
+			if ('error' in res) return fail(400, { relError: res.error });
+			childId = res.id;
+			createdId = res.id;
+		} else {
+			childId = String(formData.get('personId') ?? '');
+			if (!childId || childId === params.personId) {
+				return fail(400, { relError: 'Choose a different person to link as a child.' });
+			}
 		}
 
-		const { error: dbError } = await supabase
+		const linkErr = await linkParentChild(supabase, params.treeId, params.personId, childId);
+		if (linkErr) return fail(400, { relError: linkErr });
+
+		// Co-parent (the second parent): a new person (co_* fields), an existing one
+		// (coparent_id), or none. If chosen and not yet a partner, link them too.
+		let coId: string | null = null;
+		const coGiven = field(formData, 'co_given_names');
+		const coSurname = field(formData, 'co_surname');
+		if (coGiven || coSurname) {
+			const { data: co } = await supabase
+				.from('persons')
+				.insert({
+					tree_id: params.treeId,
+					given_names: coGiven,
+					surname: coSurname,
+					sex: field(formData, 'co_sex')
+				})
+				.select('id')
+				.single();
+			coId = co?.id ?? null;
+		} else {
+			const sel = String(formData.get('coparent_id') ?? '');
+			if (sel) coId = sel;
+		}
+		if (coId && coId !== params.personId && coId !== childId) {
+			await linkParentChild(supabase, params.treeId, coId, childId);
+			await ensurePartnership(supabase, params.treeId, params.personId, coId);
+		}
+		return { ok: true, createdId };
+	},
+
+	addSibling: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		// A sibling shares this person's parents — so there must be at least one.
+		const { data: pls } = await supabase
 			.from('parent_child_links')
-			.insert({ tree_id: params.treeId, parent_id: params.personId, child_id: childId });
-		if (dbError) {
+			.select('parent_id')
+			.eq('tree_id', params.treeId)
+			.eq('child_id', params.personId);
+		const parentIds = [...new Set((pls ?? []).map((l) => l.parent_id))];
+		if (parentIds.length === 0) {
 			return fail(400, {
-				relError: dbError.code === '23505' ? 'That child is already linked.' : dbError.message
+				relError: 'Add a parent first — siblings are linked through shared parents.'
 			});
 		}
+
+		const formData = await request.formData();
+		let siblingId: string;
+		let createdId: string | null = null;
+		if (String(formData.get('mode')) === 'create') {
+			const res = await createPerson(supabase, params.treeId, formData);
+			if ('error' in res) return fail(400, { relError: res.error });
+			siblingId = res.id;
+			createdId = res.id;
+		} else {
+			siblingId = String(formData.get('personId') ?? '');
+			if (!siblingId || siblingId === params.personId) {
+				return fail(400, { relError: 'Choose a different person to link as a sibling.' });
+			}
+		}
+
+		// Link the sibling to every parent this person has.
+		for (const parentId of parentIds) {
+			await linkParentChild(supabase, params.treeId, parentId, siblingId);
+		}
+		return { ok: true, createdId };
+	},
+
+	// Used by the "Are X and Y partners?" prompt after a second parent is added.
+	linkPartners: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		await requireEditableTree(supabase, user.id, params.treeId);
+
+		const formData = await request.formData();
+		const aId = String(formData.get('aId') ?? '');
+		const bId = String(formData.get('bId') ?? '');
+		if (!aId || !bId || aId === bId)
+			return fail(400, { relError: 'Could not link those partners.' });
+		await ensurePartnership(supabase, params.treeId, aId, bId);
 		return { ok: true };
 	},
 

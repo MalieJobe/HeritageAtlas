@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { resolve } from '$app/paths';
 	import FamilyGraph from '$lib/components/FamilyGraph.svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import Timeline from '$lib/components/Timeline.svelte';
@@ -24,15 +25,26 @@
 	let mobileView = $state<'map' | 'tree'>('map');
 
 	let hasPeople = $derived(data.graph.persons.length > 0);
+	let addPersonUrl = $derived(resolve('/trees/[treeId]/persons/new', { treeId: data.tree.id }));
 </script>
 
 <svelte:head><title>{data.tree.name} · HeritageAtlas</title></svelte:head>
 
 {#if !hasPeople}
 	<div class="grid flex-1 place-items-center p-8 text-center">
-		<p class="max-w-sm text-ink/55">
-			No people in {data.tree.name} yet. Add someone to start building the tree and map.
-		</p>
+		<div class="flex max-w-sm flex-col items-center gap-4">
+			<p class="text-ink/55">
+				No people in {data.tree.name} yet. Add someone to start building the tree and map.
+			</p>
+			{#if data.canEdit}
+				<a
+					href={addPersonUrl}
+					class="rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80"
+				>
+					＋ Add person
+				</a>
+			{/if}
+		</div>
 	</div>
 {:else}
 	<!-- lg+: fixed 50/50 split (tree | map). Below lg: one pane fills the width and
@@ -62,11 +74,23 @@
 			/>
 		</div>
 
-		<!-- Mobile-only view toggle. -->
+		<!-- Top-left controls: add a person (always) + mobile view toggle. -->
+		{#if data.canEdit}
+			<a
+				href={addPersonUrl}
+				class="absolute top-2 left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream"
+			>
+				＋ Add person
+			</a>
+		{/if}
+
+		<!-- Mobile-only view toggle (sits below the add button when it's shown). -->
 		<button
 			type="button"
 			onclick={() => (mobileView = mobileView === 'map' ? 'tree' : 'map')}
-			class="absolute top-2 left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream lg:hidden"
+			class="absolute left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream lg:hidden {data.canEdit
+				? 'top-13'
+				: 'top-2'}"
 		>
 			{#if mobileView === 'map'}
 				<svg
