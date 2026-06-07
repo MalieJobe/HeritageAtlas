@@ -182,6 +182,27 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 - [x] **3.12 Account page** — confirm `/account` covers email, change password, sign out, delete
       account.
 
+## Phase 3.5 — Fixes & polish (from real-tree use, 2026-06-05)
+
+- [ ] **3.5a Performance / input lag — HIGH PRIORITY** — the UI feels very laggy. Typing into the
+      person form makes every field briefly disappear and reappear (happens across the app), and
+      actions like "Remove parents" take a long time. Likely cause: each edit triggers a full server
+      round-trip + `invalidate`/reload that re-renders (and momentarily empties) the form, plus
+      no optimistic UI. Fix the disappearing-fields jank first (don't blow away form state on
+      revalidation), then make interactions feel instant. See the in-browser tree-store /
+      optimistic-update item under Deferred ("Perceived performance / snappiness") — promote it.
+- [ ] **3.5b Relationship management overhaul** — managing relationships is awful and broken:
+      can't add siblings at all; can't add a new partner from the "manage relationships" window.
+      Rework the relationship UI so you can add a sibling, add/create a new partner inline, and
+      generally add/edit/remove parents, partners, children, and siblings without friction.
+- [ ] **3.5c Highlight ancestry on select** — when a person is selected in the tree, highlight all
+      paths upward to their ancestors (ancestors only, not descendants/children) so the lineage is
+      easy to read.
+- [ ] **3.5d Timeline speed tuning** — make `1×` half its current speed, and adjust `2×`/`4×`
+      accordingly so they stay proportional (i.e. the whole scale slows by half).
+- [ ] **3.5e Street names in place search** — include street-level results in the place/geocoding
+      search (Nominatim), not just cities/towns. _Optional._
+
 ## Phase 4 — Historical map layer
 
 - [ ] **4.1 Source historical-basemaps data** — fetch/vendor the GeoJSON border snapshots; document license.

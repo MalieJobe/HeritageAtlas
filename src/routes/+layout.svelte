@@ -32,7 +32,9 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex min-h-screen flex-col">
+<!-- Full-bleed tree page is locked to exactly the viewport so the tree|map split
+	 and the timeline always fit on screen; every other page can grow and scroll. -->
+<div class="flex flex-col {fullBleed ? 'h-screen overflow-hidden' : 'min-h-screen'}">
 	<Header user={data.user} />
 	{#if fullBleed}
 		<main class="flex min-h-0 flex-1 flex-col">
