@@ -7,6 +7,7 @@ import { parseEventForm } from '$lib/server/eventForm';
 import { inheritedPlace, parentDefaultPlace } from '$lib/server/parentPlace';
 import type { EventRowInitial } from '$lib/components/EventRowFields.svelte';
 import type { PlaceSelection } from '$lib/place';
+import { wouldCreateCycle } from '$lib/graph/cycle';
 import type { GraphData, GraphPerson, Sex } from '$lib/graph/types';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -107,13 +108,27 @@ async function createPerson(
 	return { id: created.id };
 }
 
-/** Insert a parent→child link, treating an existing identical link as success. */
+/** Insert a parent→child link, treating an existing identical link as success.
+ *  Rejects links that would create a loop in the tree (a person can't be their
+ *  own ancestor — e.g. making your mother your own child). Returns an error
+ *  message, or null on success. */
 async function linkParentChild(
 	supabase: DB,
 	treeId: string,
 	parentId: string,
 	childId: string
 ): Promise<string | null> {
+	if (parentId === childId) return 'A person can’t be their own parent or child.';
+
+	const { data: existing } = await supabase
+		.from('parent_child_links')
+		.select('parent_id, child_id')
+		.eq('tree_id', treeId);
+	const edges = (existing ?? []).map((l) => ({ parentId: l.parent_id, childId: l.child_id }));
+	if (wouldCreateCycle(edges, parentId, childId)) {
+		return 'That would create a loop in the tree — they’re already an ancestor or descendant.';
+	}
+
 	const { error: dbError } = await supabase
 		.from('parent_child_links')
 		.insert({ tree_id: treeId, parent_id: parentId, child_id: childId });
@@ -702,7 +717,8 @@ export const actions: Actions = {
 			if (sel) coId = sel;
 		}
 		if (coId && coId !== params.personId && coId !== childId) {
-			await linkParentChild(supabase, params.treeId, coId, childId);
+			const coErr = await linkParentChild(supabase, params.treeId, coId, childId);
+			if (coErr) return fail(400, { relError: coErr });
 			await ensurePartnership(supabase, params.treeId, params.personId, coId);
 		}
 		return { ok: true, createdId };
@@ -742,7 +758,8 @@ export const actions: Actions = {
 
 		// Link the sibling to every parent this person has.
 		for (const parentId of parentIds) {
-			await linkParentChild(supabase, params.treeId, parentId, siblingId);
+			const sibErr = await linkParentChild(supabase, params.treeId, parentId, siblingId);
+			if (sibErr) return fail(400, { relError: sibErr });
 		}
 		return { ok: true, createdId };
 	},
