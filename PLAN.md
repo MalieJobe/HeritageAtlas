@@ -184,17 +184,17 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 
 ## Phase 3.5 — Fixes & polish (from real-tree use, 2026-06-05)
 
-- [ ] **3.5a Performance / input lag — HIGH PRIORITY** — the UI feels very laggy. Typing into the
-      person form makes every field briefly disappear and reappear (happens across the app), and
-      actions like "Remove parents" take a long time. Likely cause: each edit triggers a full server
-      round-trip + `invalidate`/reload that re-renders (and momentarily empties) the form, plus
-      no optimistic UI. Fix the disappearing-fields jank first (don't blow away form state on
-      revalidation), then make interactions feel instant. See the in-browser tree-store /
-      optimistic-update item under Deferred ("Perceived performance / snappiness") — promote it.
-- [ ] **3.5b Relationship management overhaul** — managing relationships is awful and broken:
-      can't add siblings at all; can't add a new partner from the "manage relationships" window.
-      Rework the relationship UI so you can add a sibling, add/create a new partner inline, and
-      generally add/edit/remove parents, partners, children, and siblings without friction.
+- [x] **3.5a Performance / input lag — HIGH PRIORITY** — the person form used default `use:enhance`,
+      which resets the `<form>` on save; saving the same value meant Svelte never re-asserted it, so
+      every field went blank for the whole reload. Switched to a no-reset enhance (fields no longer
+      disappear) and parallelized the person-page load (was ~10 sequential Supabase round-trips ≈ 1s,
+      now two fan-out phases ≈ 350ms). Deeper in-browser store / optimistic updates still tracked
+      under Deferred ("Perceived performance / snappiness").
+- [x] **3.5b Relationship management overhaul** — new combobox per relation (pick existing _or_ create
+      new inline with name+sex+DOB+birthplace); add siblings (auto-linked to all parents); add a child
+      with a co-parent picker (anyone/create/none, auto-creates the partnership); "are these two
+      partners?" prompt after a second parent; create a partner inline; confirm-before-remove; jump to
+      a newly created relative. Big tree gets a simple "Add person" button.
 - [ ] **3.5c Highlight ancestry on select** — when a person is selected in the tree, highlight all
       paths upward to their ancestors (ancestors only, not descendants/children) so the lineage is
       easy to read.
