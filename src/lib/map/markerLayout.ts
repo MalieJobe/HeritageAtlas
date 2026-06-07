@@ -141,7 +141,11 @@ function packRadius(n: number, minDist: number): number {
  */
 export function layoutMarkers(
 	points: LayoutInput[],
-	{ minDist, maxSpread }: { minDist: number; maxSpread: number }
+	{
+		minDist,
+		maxSpread,
+		forceIndividual = false
+	}: { minDist: number; maxSpread: number; forceIndividual?: boolean }
 ): MarkerInstruction[] {
 	const out: MarkerInstruction[] = [];
 	for (const group of groupByProximity(points, minDist)) {
@@ -152,7 +156,8 @@ export function layoutMarkers(
 		}
 
 		// Too many to fan out without flinging dots far from the truth → one badge.
-		if (packRadius(group.length, minDist) > maxSpread) {
+		// `forceIndividual` (zoomed in close) overrides this: always show every person.
+		if (!forceIndividual && packRadius(group.length, minDist) > maxSpread) {
 			let sumLng = 0;
 			let sumLat = 0;
 			for (const p of group) {

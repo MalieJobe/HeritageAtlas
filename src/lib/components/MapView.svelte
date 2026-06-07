@@ -55,6 +55,8 @@
 	// collapses to a count badge instead — kept fairly tight so dense spots turn
 	// into a number early rather than fanning out wildly (groups of ~5+ cluster).
 	const MAX_SPREAD = 72;
+	// Zoomed in this close, never cluster — always fan everyone out as individuals.
+	const DECLUSTER_ZOOM = 12.5;
 
 	/** Build the dot element for a person: avatar + surname-coloured ring (task 2.11). */
 	function buildElement(p: MapPerson): HTMLButtonElement {
@@ -119,7 +121,11 @@
 			const p = map!.project([pos.lng, pos.lat]);
 			return { id: pos.person.id, lng: pos.lng, lat: pos.lat, x: p.x, y: p.y };
 		});
-		const instructions = layoutMarkers(projected, { minDist: MIN_DIST, maxSpread: MAX_SPREAD });
+		const instructions = layoutMarkers(projected, {
+			minDist: MIN_DIST,
+			maxSpread: MAX_SPREAD,
+			forceIndividual: map.getZoom() >= DECLUSTER_ZOOM
+		});
 		const personById = new Map(positions.map((pos) => [pos.person.id, pos.person]));
 
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local bookkeeping
