@@ -42,6 +42,24 @@
 		)
 	);
 
+	// Precision is implied by how much is filled in — surfaced as a hint so the
+	// reusable input doubles as a precision picker (task 5.8). A day is meaningless
+	// without a month, so the day fields are disabled (and cleared) until a month is
+	// chosen.
+	let precision = $derived(day ? 'day' : month ? 'month' : year ? 'year' : null);
+	$effect(() => {
+		if (!month && day) day = '';
+	});
+	$effect(() => {
+		if (!endMonth && endDay) endDay = '';
+	});
+
+	function clear() {
+		qualifier = '';
+		year = month = day = '';
+		endYear = endMonth = endDay = '';
+	}
+
 	const MONTHS = [
 		'Jan',
 		'Feb',
@@ -85,6 +103,8 @@
 	<button
 		type="button"
 		onclick={() => (open = !open)}
+		aria-haspopup="dialog"
+		aria-expanded={open}
 		class="w-full rounded-md border border-sage bg-white px-3 py-1.5 text-left text-sm text-ink hover:border-clay focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 	>
 		{#if preview}<span class="text-ink">{preview}</span>{:else}<span class="text-ink/40"
@@ -138,8 +158,10 @@
 					min="1"
 					max="31"
 					placeholder="—"
+					disabled={!month}
+					title={month ? undefined : 'Pick a month first'}
 					bind:value={day}
-					class="{inputClass} w-16"
+					class="{inputClass} w-16 disabled:cursor-not-allowed disabled:bg-cream/60 disabled:text-ink/30"
 				/>
 			</label>
 		</div>
@@ -176,15 +198,42 @@
 						min="1"
 						max="31"
 						placeholder="—"
+						disabled={!endMonth}
+						title={endMonth ? undefined : 'Pick a month first'}
 						bind:value={endDay}
-						class="{inputClass} w-16"
+						class="{inputClass} w-16 disabled:cursor-not-allowed disabled:bg-cream/60 disabled:text-ink/30"
 					/>
 				</label>
 			</div>
 		{/if}
 
-		<p class="text-xs text-ink/55">
-			{#if preview}Reads as: <span class="font-medium text-ink/80">{preview}</span>{:else}No date{/if}
-		</p>
+		<div class="flex items-center justify-between gap-2 border-t border-sage/60 pt-2">
+			<p class="text-xs text-ink/55">
+				{#if preview}
+					Reads as: <span class="font-medium text-ink/80">{preview}</span>
+					{#if precision}<span class="text-ink/40"> · {precision} precision</span>{/if}
+				{:else}
+					No date
+				{/if}
+			</p>
+			<div class="flex items-center gap-1">
+				{#if preview}
+					<button
+						type="button"
+						onclick={clear}
+						class="rounded px-2 py-1 text-xs text-ink/55 hover:bg-cream hover:text-ink"
+					>
+						Clear
+					</button>
+				{/if}
+				<button
+					type="button"
+					onclick={() => (open = false)}
+					class="rounded bg-clay px-2.5 py-1 text-xs font-medium text-ink hover:bg-clay/80"
+				>
+					Done
+				</button>
+			</div>
+		</div>
 	</div>
 </div>
