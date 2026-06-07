@@ -24,7 +24,9 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, locals: { supabase, user } }) => {
+	// Must be a named action: SvelteKit forbids a `default` action alongside named
+	// ones (changePassword/deleteAccount), which otherwise 500s every action here.
+	updateProfile: async ({ request, locals: { supabase, user } }) => {
 		if (!user) {
 			redirect(303, '/auth/login');
 		}

@@ -26,7 +26,7 @@
 	</div>
 
 	<!-- Display name -->
-	<form method="POST" use:enhance class="flex flex-col gap-3">
+	<form method="POST" action="?/updateProfile" use:enhance class="flex flex-col gap-3">
 		<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 			Display name
 			<input
