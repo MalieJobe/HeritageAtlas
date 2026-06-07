@@ -195,24 +195,18 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
       with a co-parent picker (anyone/create/none, auto-creates the partnership); "are these two
       partners?" prompt after a second parent; create a partner inline; confirm-before-remove; jump to
       a newly created relative. Big tree gets a simple "Add person" button.
-- [ ] **3.5c Highlight ancestry on select** — when a person is selected in the tree, highlight all
-      paths upward to their ancestors (ancestors only, not descendants/children) so the lineage is
-      easy to read.
-- [ ] **3.5d Timeline speed tuning** — make `1×` half its current speed, and adjust `2×`/`4×`
-      accordingly so they stay proportional (i.e. the whole scale slows by half).
-- [ ] **3.5e Street names in place search** — include street-level results in the place/geocoding
-      search (Nominatim), not just cities/towns. _Optional._
-- [ ] **3.5f Toggle person notes** — add a control to show/hide the per-person notes. Likely
-      tree-only (notes shown inline on/near the nodes), kept off the map to avoid cluttering it.
-      Default the toggle to off; persist the preference.
-- [ ] **3.5g Minimize crossing paths in the tree layout** — when two big trees are joined (e.g. a
-      maternal + paternal side meeting at a marriage), edges cross far more than necessary; a manual
-      layout (done in Figma) placed the branches side-by-side cleanly. Improve automatic layout to
-      reduce edge crossings as much as possible: tune the elkjs options (crossing-minimization
-      passes, node/edge ordering, port/side constraints, keep partners adjacent and their subtrees
-      on consistent sides), and consider ordering siblings/branches to keep maternal vs. paternal
-      sides separated. Where crossings are unavoidable, render a **line-jump** ("hop"/bridge) marker
-      at the intersection so it's visually clear which path goes over which.
+- [x] **3.5c Highlight ancestry on select** — selecting a person now traces their lines upward to
+      every ancestor in clay (ancestors only, not descendants); the rest of the tree dims back.
+- [x] **3.5d Timeline speed tuning** — halved the base playback rate (1× = 4 yrs/sec) so `1×`/`2×`/`4×`
+      all slowed proportionally.
+- [x] **3.5e Street names in place search** — street-level geocoding results are already returned.
+- [x] **3.5f Toggle person notes** — a "Notes: on/off" control on the tree shows each person's notes
+      in a small card under their node (tree-only, off by default, remembered in localStorage).
+- [x] **3.5g Minimize crossing paths in the tree layout** — stopped forcing ELK to honour the
+      (alphabetical, layout-meaningless) model order and gave its layer-sweep crossing minimisation
+      more passes, which cuts crossings sharply where maternal + paternal sides join. Remaining
+      crossings now render a **line-jump**: the horizontal stays continuous and the vertical breaks,
+      so it's clear they don't connect. _Further branch-side separation can still be explored later._
 
 ## Phase 4 — Historical map layer
 
