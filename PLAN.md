@@ -220,16 +220,29 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
 
 ## Phase 5 — GEDCOM & polish
 
-- [ ] **5.1 GEDCOM import — parse** — parse GEDCOM 5.5.1/7.0 into an intermediate structure.
-- [ ] **5.2 GEDCOM import — map persons** — map individuals → persons (names, gender, notes).
-- [ ] **5.3 GEDCOM import — map relationships** — families → partnerships + parent-child links.
-- [ ] **5.4 GEDCOM import — map events/places** — events + place geocoding (queue manual review).
-- [ ] **5.5 GEDCOM import — fuzzy dates** — translate GEDCOM date qualifiers → our fuzzy-date shape.
-- [ ] **5.6 Import review UI** — preview/confirm before committing an import (reachable from the
-      dashboard "Import GEDCOM" action).
-- [ ] **5.7 GEDCOM export** — serialize a tree back to valid GEDCOM.
-- [ ] **5.8 Fuzzy-date input UX** — polished reusable date input (qualifier + precision).
-- [ ] **5.9 Error handling & toasts** — consistent feedback for async actions.
+- [x] **5.1 GEDCOM import — parse** — `src/lib/gedcom/parse.ts`: tokenizes level-numbered lines
+      (5.5.1/7.0) into a record tree, folding CONC/CONT and resolving @xref@ pointers.
+- [x] **5.2 GEDCOM import — map persons** — `import.ts` `buildImportPlan`: INDI → persons (name via
+      NAME/GIVN/SURN, M/F/X→sex, NOTE + TITL → notes), one birth/death max (DB constraint).
+- [x] **5.3 GEDCOM import — map relationships** — FAM → partnerships (HUSB/WIFE) + parent-child links
+      (each parent → each child), deduped.
+- [x] **5.4 GEDCOM import — map events/places** — BIRT/DEAT/RESI/OCCU + BAPM/BURI/CHR/EVEN(TYPE) →
+      events; unique PLAC names geocoded client-side via the proxy (optional, rate-limited), the rest
+      created without coordinates and queued for manual locating.
+- [x] **5.5 GEDCOM import — fuzzy dates** — `date.ts`: ABT/EST/CAL, BEF/AFT, BET..AND, FROM..TO →
+      the FuzzyDate shape (+ day/month/year precision); `formatGedcomDate` for export.
+- [x] **5.6 Import review UI** — `/import`: upload → client-side preview (counts + warnings) →
+      optional place geocoding with progress → confirm → writes a new tree (server re-parses,
+      `commitImport`). Linked from the dashboard "Import GEDCOM" action.
+- [x] **5.7 GEDCOM export** — `export.ts` + `/trees/[treeId]/export`: serializes to valid GEDCOM
+      5.5.1 (FAM rebuilt from partnerships + links). Download link in tree Settings → Export.
+- [x] **5.8 Fuzzy-date input UX** — polished `FuzzyDateInput`: precision-aware day fields (disabled
+      until a month is chosen), a precision hint, Clear/Done actions, better a11y.
+- [x] **5.9 Error handling & toasts** — `toast.svelte.ts` + `<Toaster>` in the root layout; used by
+      the import flow (success/error) and import-complete confirmation on the tree page.
+
+> Round-trip is covered by Vitest against the vendored gold-standard `royal92.ged` (3010 individuals)
+> — see `src/lib/gedcom/gedcom.test.ts`. This addresses the GEDCOM part of the Deferred "Testing" item.
 
 ## Deferred (revisit later)
 
