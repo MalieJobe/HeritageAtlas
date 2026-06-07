@@ -57,7 +57,7 @@ export async function loadTreeViewData(
 		await Promise.all([
 			supabase
 				.from('persons')
-				.select('id, given_names, surname, nickname, sex, profile_photo_path')
+				.select('id, given_names, surname, nickname, sex, profile_photo_path, notes')
 				.eq('tree_id', treeId),
 			supabase
 				.from('partnerships')
@@ -143,7 +143,8 @@ export async function loadTreeViewData(
 				sex: normalizeSex(p.sex),
 				photoUrl: resolvePhoto(p.profile_photo_path),
 				birthYear: birthYears.get(p.id) ?? null,
-				deathYear: deathYears.get(p.id) ?? null
+				deathYear: deathYears.get(p.id) ?? null,
+				notes: p.notes ?? null
 			}))
 			.sort((a, b) => a.name.localeCompare(b.name)),
 		partnerships: (partnerRows ?? []).map((row) => ({

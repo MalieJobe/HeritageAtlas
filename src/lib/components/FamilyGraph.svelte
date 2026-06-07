@@ -7,6 +7,8 @@
 	import {
 		layoutGraph,
 		buildConnectors,
+		buildHops,
+		ancestorsOf,
 		NODE_WIDTH,
 		NODE_HEIGHT,
 		type LayoutResult
@@ -19,7 +21,8 @@
 		onselect,
 		year = null,
 		fill = false,
-		readonly = false
+		readonly = false,
+		showNotes = false
 	}: {
 		graph: GraphData;
 		treeId: string;
@@ -34,6 +37,8 @@
 		fill?: boolean;
 		/** Demo mode: keep selection/centering but hide the "open profile" panel. */
 		readonly?: boolean;
+		/** Show each person's notes under their card. */
+		showNotes?: boolean;
 	} = $props();
 
 	let controlled = $derived(onselect !== undefined);
@@ -228,6 +233,28 @@
 	}
 
 	let connectors = $derived(result ? buildConnectors(result) : []);
+	let hops = $derived(result ? buildHops(result) : []);
+
+	// --- Ancestry highlight on select (3.5c): trace the selected person's lines
+	// upward to all their ancestors (ancestors only, never descendants). ---
+	let ancestorSet = $derived(ancestorsOf(graph.parentLinks, activeSelected));
+	// Path members = selected + every ancestor; a child-link is on the ancestry path
+	// when its child is a path member (its parents are then ancestors by definition).
+	let pathSet = $derived(new Set<string>(activeSelected ? [activeSelected, ...ancestorSet] : []));
+	// Union id -> its parents, so a partnership line can be flagged ancestral when
+	// both partners are ancestors.
+	let familyParents = $derived(
+		new Map<string, string[]>((result?.families ?? []).map((f) => [f.id, f.parents]))
+	);
+	function isAncestralCouple(unionId: string): boolean {
+		if (ancestorSet.size === 0) return false;
+		const parents = familyParents.get(unionId);
+		return !!parents && parents.length === 2 && parents.every((p) => ancestorSet.has(p));
+	}
+	let hasHighlight = $derived(pathSet.size > 1);
+
+	const HL = '#E9BA9C';
+	const INK = '#0D0F0B';
 
 	/** Where this person sits relative to the timeline year: not-yet-born, dead, or
 	 *  living. Drives the visual cue — unborn fade (still in colour), dead go grey. */
@@ -266,32 +293,53 @@
 			onpointerleave={onPointerUp}
 		>
 			<g transform="translate({tx},{ty}) scale({scale})">
-				<!-- Connectors first, behind the nodes. -->
+				<!-- Connectors first, behind the nodes. When a person is selected, the
+					 lines on their ancestry path are emphasised; the rest dim back. -->
 				{#each connectors as c (c.id)}
 					{#if c.partnerLine}
+						{@const hl = isAncestralCouple(c.id)}
 						<line
 							x1={c.partnerLine.x1}
 							y1={c.partnerLine.y}
 							x2={c.partnerLine.x2}
 							y2={c.partnerLine.y}
-							stroke="#0D0F0B"
-							stroke-width="1.5"
+							stroke={hl ? HL : INK}
+							stroke-width={hl ? 3 : 1.5}
 							stroke-linecap="round"
-							stroke-opacity={c.partnerLine.status === 'former' ? 0.5 : 0.9}
+							stroke-opacity={hl
+								? 1
+								: (c.partnerLine.status === 'former' ? 0.5 : 0.9) * (hasHighlight ? 0.35 : 1)}
 							stroke-dasharray={c.partnerLine.status === 'former' ? '7 7' : undefined}
 						/>
 					{/if}
 					{#each c.childPaths as cp (cp.id)}
+						{@const hl = pathSet.has(cp.id)}
 						<path
 							d={cp.d}
 							fill="none"
-							stroke="#0D0F0B"
-							stroke-width="1.5"
+							stroke={hl ? HL : INK}
+							stroke-width={hl ? 3 : 1.5}
 							stroke-linecap="round"
 							stroke-linejoin="round"
-							stroke-opacity="0.9"
+							stroke-opacity={hl ? 1 : 0.9 * (hasHighlight ? 0.35 : 1)}
 						/>
 					{/each}
+				{/each}
+
+				<!-- Line jumps: where two families' connectors cross, break the vertical
+					 so the horizontal reads as passing over it (3.5g). -->
+				{#each hops as hop (`${hop.x},${hop.y}`)}
+					<circle cx={hop.x} cy={hop.y} r="5" fill="#FAFBF9" />
+					<line
+						x1={hop.x - 6}
+						y1={hop.y}
+						x2={hop.x + 6}
+						y2={hop.y}
+						stroke={INK}
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-opacity="0.9"
+					/>
 				{/each}
 
 				<!-- Junction dots at the centre of each partnership line. -->
@@ -327,6 +375,7 @@
 							<PersonNode
 								{person}
 								selected={person.id === activeSelected}
+								{showNotes}
 								onselect={handleSelect}
 							/>
 						</g>

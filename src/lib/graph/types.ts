@@ -15,6 +15,8 @@ export type GraphPerson = {
 	birthYear: number | null;
 	/** Death year (from a death event, if any), shown in the card's bottom-right. */
 	deathYear: number | null;
+	/** Free-text notes, shown under the card when the tree's "notes" toggle is on. */
+	notes?: string | null;
 };
 
 /** A partnership edge (symmetric). `status` drives the connector style. */

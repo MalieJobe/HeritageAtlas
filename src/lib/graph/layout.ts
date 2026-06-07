@@ -1,5 +1,5 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
-import type { GraphData } from './types';
+import type { GraphData, GraphParentLink } from './types';
 
 /** Rendered card footprint, shared by the layout and the node component. */
 export const NODE_WIDTH = 167;
@@ -121,7 +121,14 @@ function buildElkGraph(data: GraphData): {
 			'elk.layered.spacing.edgeNodeBetweenLayers': '24',
 			'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
 			'elk.layered.mergeEdges': 'true',
-			'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES'
+			// Crossing minimisation: persons arrive alphabetically (meaningless for
+			// layout), so honouring model order forced needless crossings — especially
+			// where a maternal + paternal side join. Let ELK's layer-sweep reorder
+			// freely and give it more passes (3.5g).
+			'elk.layered.considerModelOrder.strategy': 'NONE',
+			'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+			'elk.layered.crossingMinimization.semiInteractive': 'false',
+			'elk.layered.thoroughness': '40'
 		},
 		children,
 		edges
@@ -234,4 +241,102 @@ export function buildConnectors(result: LayoutResult): Connector[] {
 		});
 	}
 	return out;
+}
+
+/**
+ * All ancestors of a person (parents, grandparents, …), never descendants — used
+ * to highlight the ancestry path when a node is selected (3.5c). Pure helper so it
+ * lives outside the component's reactive scope.
+ */
+export function ancestorsOf(
+	parentLinks: GraphParentLink[],
+	selectedId: string | null
+): Set<string> {
+	const set = new Set<string>();
+	if (!selectedId) return set;
+	const childToParents = new Map<string, string[]>();
+	for (const l of parentLinks) {
+		const arr = childToParents.get(l.child);
+		if (arr) arr.push(l.parent);
+		else childToParents.set(l.child, [l.parent]);
+	}
+	const stack = [selectedId];
+	while (stack.length > 0) {
+		const id = stack.pop() as string;
+		for (const p of childToParents.get(id) ?? []) {
+			if (!set.has(p)) {
+				set.add(p);
+				stack.push(p);
+			}
+		}
+	}
+	return set;
+}
+
+/** A point where two connectors from *different* families cross — drawn as a
+ *  "line jump" so it's clear they don't actually join (3.5g). */
+export type Hop = { x: number; y: number };
+
+type HSeg = { y: number; x1: number; x2: number; fam: string };
+type VSeg = { x: number; y1: number; y2: number; fam: string };
+
+/**
+ * Find connector crossings by decomposing each family's connectors into their
+ * horizontal and vertical segments (the same geometry buildConnectors draws) and
+ * intersecting horizontals against verticals from other families. By convention
+ * the horizontal line stays continuous and the vertical gets the hop, so the
+ * renderer breaks the vertical at each returned point.
+ */
+export function buildHops(result: LayoutResult): Hop[] {
+	const nodes = result.nodes;
+	const hs: HSeg[] = [];
+	const vs: VSeg[] = [];
+
+	for (const fam of result.families) {
+		const parents = fam.parents.map((id) => nodes.get(id)).filter((n): n is LayoutNode => !!n);
+		if (parents.length === 0) continue;
+
+		let jx: number;
+		let jy: number;
+		if (parents.length === 2) {
+			const left = parents[0].x <= parents[1].x ? parents[0] : parents[1];
+			const right = parents[0].x <= parents[1].x ? parents[1] : parents[0];
+			const y = left.y + PARTNER_ANCHOR_Y;
+			hs.push({ y, x1: left.x + NODE_WIDTH, x2: right.x, fam: fam.id });
+			jx = (left.x + NODE_WIDTH + right.x) / 2;
+			jy = y;
+		} else {
+			jx = parents[0].x + NODE_WIDTH / 2;
+			jy = parents[0].y + PARENT_BOTTOM_Y;
+		}
+
+		const childNodes = fam.children.map((id) => nodes.get(id)).filter((n): n is LayoutNode => !!n);
+		if (childNodes.length > 0) {
+			const minChildTop = Math.min(...childNodes.map((c) => c.y + CHILD_TOP_Y));
+			const busY = (jy + minChildTop) / 2;
+			vs.push({ x: jx, y1: Math.min(jy, busY), y2: Math.max(jy, busY), fam: fam.id });
+			for (const c of childNodes) {
+				const cx = c.x + NODE_WIDTH / 2;
+				const cy = c.y + CHILD_TOP_Y;
+				hs.push({ y: busY, x1: Math.min(jx, cx), x2: Math.max(jx, cx), fam: fam.id });
+				vs.push({ x: cx, y1: Math.min(busY, cy), y2: Math.max(busY, cy), fam: fam.id });
+			}
+		}
+	}
+
+	const EPS = 1.5;
+	const seen = new Set<string>();
+	const hops: Hop[] = [];
+	for (const h of hs) {
+		for (const v of vs) {
+			if (h.fam === v.fam) continue;
+			if (v.x > h.x1 + EPS && v.x < h.x2 - EPS && h.y > v.y1 + EPS && h.y < v.y2 - EPS) {
+				const key = `${Math.round(v.x)},${Math.round(h.y)}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				hops.push({ x: v.x, y: h.y });
+			}
+		}
+	}
+	return hops;
 }

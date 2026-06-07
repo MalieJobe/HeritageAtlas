@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import FamilyGraph from '$lib/components/FamilyGraph.svelte';
 	import MapView from '$lib/components/MapView.svelte';
@@ -7,6 +8,17 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	// Show per-person notes on the tree (tree-only; kept off the map). Off by
+	// default and remembered across visits (3.5f). Loaded after mount to avoid an
+	// SSR/hydration mismatch.
+	let showNotes = $state(false);
+	onMount(() => {
+		showNotes = localStorage.getItem('ha:showNotes') === '1';
+	});
+	$effect(() => {
+		if (browser) localStorage.setItem('ha:showNotes', showNotes ? '1' : '0');
+	});
 
 	// Auto-derived slider span; a sensible default when the tree has no dated facts.
 	const fallbackMax = new Date().getFullYear();
@@ -60,6 +72,7 @@
 				treeId={data.tree.id}
 				{selectedId}
 				{year}
+				{showNotes}
 				fill
 				onselect={(id) => (selectedId = id)}
 			/>
@@ -74,23 +87,35 @@
 			/>
 		</div>
 
-		<!-- Top-left controls: add a person (always) + mobile view toggle. -->
-		{#if data.canEdit}
-			<a
-				href={addPersonUrl}
-				class="absolute top-2 left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream"
+		<!-- Top-left controls: add a person + notes toggle. -->
+		<div class="absolute top-2 left-2 z-30 flex items-center gap-2">
+			{#if data.canEdit}
+				<a
+					href={addPersonUrl}
+					class="flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream"
+				>
+					＋ Add person
+				</a>
+			{/if}
+			<!-- Notes toggle (tree-only) — hidden on mobile when the map is showing. -->
+			<button
+				type="button"
+				onclick={() => (showNotes = !showNotes)}
+				aria-pressed={showNotes}
+				class="items-center gap-1.5 rounded-md border border-sage px-3 py-1.5 text-sm font-medium shadow-sm backdrop-blur hover:bg-cream {mobileView ===
+				'tree'
+					? 'flex'
+					: 'hidden'} lg:flex {showNotes ? 'bg-clay text-ink' : 'bg-white/90 text-ink/80'}"
 			>
-				＋ Add person
-			</a>
-		{/if}
+				{showNotes ? 'Notes: on' : 'Notes: off'}
+			</button>
+		</div>
 
-		<!-- Mobile-only view toggle (sits below the add button when it's shown). -->
+		<!-- Mobile-only view toggle (sits below the controls row). -->
 		<button
 			type="button"
 			onclick={() => (mobileView = mobileView === 'map' ? 'tree' : 'map')}
-			class="absolute left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream lg:hidden {data.canEdit
-				? 'top-13'
-				: 'top-2'}"
+			class="absolute top-13 left-2 z-30 flex items-center gap-1.5 rounded-md border border-sage bg-white/90 px-3 py-1.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-cream lg:hidden"
 		>
 			{#if mobileView === 'map'}
 				<svg

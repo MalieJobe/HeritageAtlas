@@ -25,10 +25,13 @@
 	let {
 		person,
 		selected = false,
+		showNotes = false,
 		onselect
 	}: {
 		person: GraphPerson;
 		selected?: boolean;
+		/** When on (and the person has notes), show a small notes card below the name. */
+		showNotes?: boolean;
 		onselect?: (id: string) => void;
 	} = $props();
 
@@ -131,4 +134,29 @@
 			fill-opacity="0.45">{person.initials}</text
 		>
 	{/if}
+
+	{#if showNotes && person.notes}
+		<foreignObject x="1" y={NAME_RECT.y + NAME_RECT.h + 3} width={NODE_WIDTH - 2} height="60">
+			<div class="ha-note">{person.notes}</div>
+		</foreignObject>
+	{/if}
 </g>
+
+<style>
+	.ha-note {
+		box-sizing: border-box;
+		max-height: 60px;
+		overflow: hidden;
+		padding: 4px 6px;
+		border-radius: 6px;
+		background: rgba(246, 243, 219, 0.92);
+		border: 1px solid rgba(13, 15, 11, 0.12);
+		font:
+			10px/1.3 Georgia,
+			'Times New Roman',
+			serif;
+		color: rgba(13, 15, 11, 0.78);
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+	}
+</style>
