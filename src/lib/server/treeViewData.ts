@@ -45,6 +45,121 @@ export type TreeViewData = {
 	timeline: { min: number; max: number } | null;
 };
 
+/** Raw rows the view is built from — the shape both the RLS query path and the
+ *  public-share RPC path produce. `photoUrl` is pre-resolved by the caller. */
+export type TreeViewRows = {
+	persons: {
+		id: string;
+		given_names: string | null;
+		surname: string | null;
+		nickname: string | null;
+		sex: string | null;
+		notes: string | null;
+		photoUrl: string | null;
+	}[];
+	partnerships: { id: string; partner_a: string; partner_b: string; status: string }[];
+	links: { id: string; parent_id: string; child_id: string }[];
+	events: {
+		person_id: string;
+		type: string;
+		event_date: string | null;
+		place: { name: string; lat: number | null; lng: number | null } | null;
+	}[];
+};
+
+/** Pure transform: raw rows → GraphData + MapData + timeline. No I/O, so it serves
+ *  both the authenticated loader and the public share page. */
+export function buildTreeViewData(rows: TreeViewRows): TreeViewData {
+	const { persons, partnerships, links, events } = rows;
+
+	const birthYears = new Map<string, number>();
+	const deathYears = new Map<string, number>();
+	const eventsByPerson = new Map<string, LocatingEvent[]>();
+	let minYear = Infinity;
+	let maxYear = -Infinity;
+	const stretch = (year: number) => {
+		if (year < minYear) minYear = year;
+		if (year > maxYear) maxYear = year;
+	};
+
+	for (const row of events) {
+		const type = row.type as EventType;
+		const year = yearOf(row.event_date);
+
+		if (year != null && (type === 'birth' || type === 'death')) {
+			const target = type === 'death' ? deathYears : birthYears;
+			if (!target.has(row.person_id)) target.set(row.person_id, year);
+			stretch(year);
+		}
+
+		if (!eventTypeMeta(type).locates) continue;
+		const place = row.place;
+		if (!place || place.lat == null || place.lng == null || year == null) continue;
+
+		const event: LocatingEvent = {
+			type,
+			year,
+			lat: place.lat,
+			lng: place.lng,
+			placeName: place.name
+		};
+		const list = eventsByPerson.get(row.person_id);
+		if (list) list.push(event);
+		else eventsByPerson.set(row.person_id, [event]);
+		stretch(year);
+	}
+
+	const graph: GraphData = {
+		persons: persons
+			.map((p) => ({
+				id: p.id,
+				name: personName(p),
+				surname: p.surname,
+				initials: personInitials(p),
+				sex: normalizeSex(p.sex),
+				photoUrl: p.photoUrl,
+				birthYear: birthYears.get(p.id) ?? null,
+				deathYear: deathYears.get(p.id) ?? null,
+				notes: p.notes ?? null
+			}))
+			.sort((a, b) => a.name.localeCompare(b.name)),
+		partnerships: partnerships.map((row) => ({
+			id: row.id,
+			a: row.partner_a,
+			b: row.partner_b,
+			status: row.status === 'former' ? 'former' : 'current'
+		})),
+		parentLinks: links.map((row) => ({ id: row.id, parent: row.parent_id, child: row.child_id }))
+	};
+
+	const mapPersons: MapPerson[] = persons
+		.map((p) => {
+			const evs = (eventsByPerson.get(p.id) ?? []).sort(
+				(a, b) => a.year - b.year || typeWeight(a.type) - typeWeight(b.type)
+			);
+			return {
+				id: p.id,
+				name: personName(p),
+				surname: p.surname,
+				initials: personInitials(p),
+				sex: normalizeSex(p.sex),
+				photoUrl: p.photoUrl,
+				birthYear: birthYears.get(p.id) ?? null,
+				deathYear: deathYears.get(p.id) ?? null,
+				events: evs
+			};
+		})
+		.filter((p) => p.events.length > 0);
+
+	const eventYears = mapPersons.length > 0 ? { min: minYear, max: maxYear } : null;
+
+	return {
+		graph,
+		map: { persons: mapPersons, yearRange: eventYears },
+		timeline: Number.isFinite(minYear) ? { min: minYear, max: maxYear } : null
+	};
+}
+
 /**
  * Load everything the family graph and the map need for one tree, in a single
  * pass over persons + events. RLS still applies via the passed client.
@@ -93,104 +208,34 @@ export async function loadTreeViewData(
 	const resolvePhoto = (path: string | null): string | null =>
 		path ? (isExternal(path) ? path : (signedByPath.get(path) ?? null)) : null;
 
-	// Single pass over events derives three things: birth/death years (for the
-	// graph cards + aging cue), located events per person (for the map), and the
-	// span of every dated fact (for the timeline range).
-	const birthYears = new Map<string, number>();
-	const deathYears = new Map<string, number>();
-	const eventsByPerson = new Map<string, LocatingEvent[]>();
-	let minYear = Infinity;
-	let maxYear = -Infinity;
-	const stretch = (year: number) => {
-		if (year < minYear) minYear = year;
-		if (year > maxYear) maxYear = year;
-	};
-
-	for (const row of eventRows ?? []) {
-		const type = row.type as EventType;
-		const year = yearOf(row.event_date);
-
-		if (year != null && (type === 'birth' || type === 'death')) {
-			const target = type === 'death' ? deathYears : birthYears;
-			if (!target.has(row.person_id)) target.set(row.person_id, year);
-			stretch(year);
-		}
-
-		if (!eventTypeMeta(type).locates) continue;
-		const place = row.place;
-		if (!place || place.lat == null || place.lng == null || year == null) continue;
-
-		const event: LocatingEvent = {
-			type,
-			year,
-			lat: place.lat,
-			lng: place.lng,
-			placeName: place.name
-		};
-		const list = eventsByPerson.get(row.person_id);
-		if (list) list.push(event);
-		else eventsByPerson.set(row.person_id, [event]);
-		stretch(year);
-	}
-
-	const graph: GraphData = {
-		persons: persons
-			.map((p) => ({
-				id: p.id,
-				name: personName(p),
-				surname: p.surname,
-				initials: personInitials(p),
-				sex: normalizeSex(p.sex),
-				photoUrl: resolvePhoto(p.profile_photo_path),
-				birthYear: birthYears.get(p.id) ?? null,
-				deathYear: deathYears.get(p.id) ?? null,
-				notes: p.notes ?? null
-			}))
-			.sort((a, b) => a.name.localeCompare(b.name)),
-		partnerships: (partnerRows ?? []).map((row) => ({
-			id: row.id,
-			a: row.partner_a,
-			b: row.partner_b,
-			status: row.status === 'former' ? 'former' : 'current'
+	// Hand the resolved rows to the shared pure builder (also used by the public
+	// share page, which gets identical rows from an RPC instead of these queries).
+	return buildTreeViewData({
+		persons: persons.map((p) => ({
+			id: p.id,
+			given_names: p.given_names,
+			surname: p.surname,
+			nickname: p.nickname,
+			sex: p.sex,
+			notes: p.notes,
+			photoUrl: resolvePhoto(p.profile_photo_path)
 		})),
-		parentLinks: (linkRows ?? []).map((row) => ({
-			id: row.id,
-			parent: row.parent_id,
-			child: row.child_id
+		partnerships: (partnerRows ?? []).map((r) => ({
+			id: r.id,
+			partner_a: r.partner_a,
+			partner_b: r.partner_b,
+			status: r.status
+		})),
+		links: (linkRows ?? []).map((r) => ({
+			id: r.id,
+			parent_id: r.parent_id,
+			child_id: r.child_id
+		})),
+		events: (eventRows ?? []).map((r) => ({
+			person_id: r.person_id,
+			type: r.type,
+			event_date: r.event_date,
+			place: r.place ? { name: r.place.name, lat: r.place.lat, lng: r.place.lng } : null
 		}))
-	};
-
-	const mapPersons: MapPerson[] = persons
-		.map((p) => {
-			const events = (eventsByPerson.get(p.id) ?? []).sort(
-				(a, b) => a.year - b.year || typeWeight(a.type) - typeWeight(b.type)
-			);
-			return {
-				id: p.id,
-				name: personName(p),
-				surname: p.surname,
-				initials: personInitials(p),
-				sex: normalizeSex(p.sex),
-				photoUrl: resolvePhoto(p.profile_photo_path),
-				birthYear: birthYears.get(p.id) ?? null,
-				deathYear: deathYears.get(p.id) ?? null,
-				events
-			};
-		})
-		.filter((p) => p.events.length > 0);
-
-	const eventYears = mapPersons.length > 0 ? { min: minYear, max: maxYear } : null;
-
-	const map: MapData = {
-		persons: mapPersons,
-		// The map's own range is just the located-event span (dots only move on
-		// located events), kept separate from the fuller timeline span below.
-		yearRange: eventYears
-	};
-
-	return {
-		graph,
-		map,
-		timeline: Number.isFinite(minYear) ? { min: minYear, max: maxYear } : null
-	};
+	});
 }
