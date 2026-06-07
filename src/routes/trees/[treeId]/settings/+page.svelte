@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { toasts } from '$lib/toast.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -9,6 +11,21 @@
 
 	function memberLabel(member: PageData['members'][number]): string {
 		return member.displayName ?? 'Unnamed member';
+	}
+
+	// Public share link.
+	let shareUrl = $derived(data.shareToken ? `${page.url.origin}/share/${data.shareToken}` : null);
+	let copied = $state(false);
+	async function copyShareUrl() {
+		if (!shareUrl) return;
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			copied = true;
+			toasts.success('Link copied.');
+			setTimeout(() => (copied = false), 1500);
+		} catch {
+			toasts.error('Could not copy — select and copy manually.');
+		}
 	}
 </script>
 
@@ -100,6 +117,88 @@
 		</ul>
 		{#if form?.memberError}<p class="text-sm text-red-600">{form.memberError}</p>{/if}
 	</section>
+
+	<!-- Public share link (owner only) -->
+	{#if data.isOwner}
+		<section class="flex flex-col gap-3">
+			<div class="flex flex-col gap-0.5">
+				<h2 class="text-sm font-medium text-ink/80">Public share link</h2>
+				<p class="text-xs text-ink/45">
+					Anyone with the link <em>and</em> the password can view this tree (read-only, no account needed).
+					Photos are hidden on the shared view for privacy.
+				</p>
+			</div>
+
+			{#if data.shareToken}
+				<div class="flex flex-col gap-2 rounded-lg border border-sage bg-white p-3">
+					<div class="flex items-center gap-2">
+						<input
+							readonly
+							value={shareUrl}
+							class="min-w-0 flex-1 rounded-md border border-sage bg-cream/40 px-2 py-1.5 text-sm text-ink"
+						/>
+						<button
+							type="button"
+							onclick={copyShareUrl}
+							class="shrink-0 rounded-md border border-sage px-3 py-1.5 text-sm text-ink hover:bg-cream"
+						>
+							{copied ? 'Copied' : 'Copy'}
+						</button>
+					</div>
+					<div class="flex flex-wrap items-end gap-2">
+						<form method="POST" action="?/share" use:enhance class="flex items-end gap-2">
+							<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
+								Reset password
+								<input
+									name="password"
+									type="password"
+									minlength="4"
+									required
+									placeholder="New password"
+									class="rounded-md border border-sage bg-white px-2 py-1.5 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
+								/>
+							</label>
+							<button
+								type="submit"
+								class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink hover:bg-cream"
+							>
+								Update
+							</button>
+						</form>
+						<form method="POST" action="?/unshare" use:enhance>
+							<button
+								type="submit"
+								class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink/70 hover:bg-cream hover:text-red-600"
+							>
+								Stop sharing
+							</button>
+						</form>
+					</div>
+				</div>
+			{:else}
+				<form method="POST" action="?/share" use:enhance class="flex flex-wrap items-end gap-2">
+					<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
+						Password
+						<input
+							name="password"
+							type="password"
+							minlength="4"
+							required
+							placeholder="At least 4 characters"
+							class="rounded-md border border-sage bg-white px-3 py-2 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
+						/>
+					</label>
+					<button
+						type="submit"
+						class="rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80"
+					>
+						Create share link
+					</button>
+				</form>
+			{/if}
+			{#if form?.shareError}<p class="text-sm text-red-600">{form.shareError}</p>{/if}
+		</section>
+	{/if}
 
 	<!-- Export -->
 	<section class="flex flex-col gap-2">

@@ -6,10 +6,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 async function loadTree(
 	supabase: App.Locals['supabase'],
 	treeId: string
-): Promise<{ id: string; name: string; owner_id: string }> {
+): Promise<{ id: string; name: string; owner_id: string; share_token: string | null }> {
 	const { data: tree } = await supabase
 		.from('trees')
-		.select('id, name, owner_id')
+		.select('id, name, owner_id, share_token')
 		.eq('id', treeId)
 		.maybeSingle();
 	if (!tree) {
@@ -63,7 +63,9 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		tree: { id: tree.id, name: tree.name },
 		isOwner,
 		members,
-		invitations: inviteRows ?? []
+		invitations: inviteRows ?? [],
+		// Whether a public (password-protected) share link is active. Owner only.
+		shareToken: isOwner ? tree.share_token : null
 	};
 };
 
@@ -93,6 +95,32 @@ export const actions: Actions = {
 		}
 
 		return { renamed: true };
+	},
+
+	// Create or rotate a password-protected public share link (owner only; the RPC
+	// re-checks ownership and hashes the password in the database).
+	share: async ({ params, request, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		const password = String((await request.formData()).get('password') ?? '');
+		if (password.length < 4) {
+			return fail(400, { shareError: 'Password must be at least 4 characters.' });
+		}
+		const { error: rpcError } = await supabase.rpc('set_tree_share', {
+			p_tree_id: params.treeId,
+			p_password: password
+		});
+		if (rpcError) return fail(400, { shareError: rpcError.message });
+		return { shared: true };
+	},
+
+	// Turn the public share link off (owner only).
+	unshare: async ({ params, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		const { error: rpcError } = await supabase.rpc('clear_tree_share', {
+			p_tree_id: params.treeId
+		});
+		if (rpcError) return fail(400, { shareError: rpcError.message });
+		return { unshared: true };
 	},
 
 	invite: async ({ params, request, locals: { supabase, user } }) => {

@@ -409,22 +409,31 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_public: boolean
           name: string
           owner_id: string
+          share_password: string | null
+          share_token: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_public?: boolean
           name: string
           owner_id?: string
+          share_password?: string | null
+          share_token?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_public?: boolean
           name?: string
           owner_id?: string
+          share_password?: string | null
+          share_token?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -434,7 +443,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clear_tree_share: { Args: { p_tree_id: string }; Returns: undefined }
       gen_short_id: { Args: { len?: number }; Returns: string }
+      get_shared_tree: {
+        Args: { p_password: string; p_token: string }
+        Returns: Json
+      }
+      set_tree_share: {
+        Args: { p_password: string; p_tree_id: string }
+        Returns: string
+      }
+      shared_tree_meta: { Args: { p_token: string }; Returns: string }
     }
     Enums: {
       date_precision: "day" | "month" | "year"

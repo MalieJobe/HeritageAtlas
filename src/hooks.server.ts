@@ -3,7 +3,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
 /** Routes that do NOT require an authenticated session. */
-const PUBLIC_ROUTES = ['/', '/auth'];
+const PUBLIC_ROUTES = ['/', '/auth', '/share'];
 
 function isPublic(pathname: string): boolean {
 	return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
