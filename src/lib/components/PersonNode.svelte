@@ -137,7 +137,19 @@
 
 	{#if showNotes && person.notes}
 		<foreignObject x="1" y={NAME_RECT.y + NAME_RECT.h + 3} width={NODE_WIDTH - 2} height="60">
-			<div class="ha-note">{person.notes}</div>
+			<!-- Notes can be longer than the box; let them scroll. We only swallow the
+				 wheel when the note actually overflows, so zooming the tree still works
+				 when hovering a short note. Full text is also available on hover (title). -->
+			<div
+				class="ha-note"
+				title={person.notes}
+				onwheelcapture={(e) => {
+					const t = e.currentTarget;
+					if (t.scrollHeight > t.clientHeight) e.stopPropagation();
+				}}
+			>
+				{person.notes}
+			</div>
 		</foreignObject>
 	{/if}
 </g>
@@ -145,8 +157,9 @@
 <style>
 	.ha-note {
 		box-sizing: border-box;
-		max-height: 60px;
-		overflow: hidden;
+		height: 60px;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 		padding: 4px 6px;
 		border-radius: 6px;
 		background: rgba(246, 243, 219, 0.92);
@@ -158,5 +171,14 @@
 		color: rgba(13, 15, 11, 0.78);
 		white-space: pre-line;
 		overflow-wrap: anywhere;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(13, 15, 11, 0.3) transparent;
+	}
+	.ha-note::-webkit-scrollbar {
+		width: 6px;
+	}
+	.ha-note::-webkit-scrollbar-thumb {
+		background: rgba(13, 15, 11, 0.3);
+		border-radius: 3px;
 	}
 </style>
