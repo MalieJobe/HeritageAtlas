@@ -2,6 +2,7 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/Header.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -46,3 +47,5 @@
 		</main>
 	{/if}
 </div>
+
+<Toaster />
