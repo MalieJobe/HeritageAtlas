@@ -30,6 +30,17 @@
 		editingId = null;
 		formKey += 1;
 	}
+	// Default SvelteKit enhance resets the <form> on success, which blanks inputs
+	// bound with `value={…}` — and because saving often re-submits the same value,
+	// Svelte sees no data change and never re-asserts it, so the field stays empty
+	// until the (slow) full reload finishes. Keeping the form un-reset fixes that
+	// "fields disappear for a moment" jank (3.5a).
+	const keepEnhance =
+		() =>
+		async ({ update }: { update: (opts?: { reset?: boolean }) => Promise<void> }) => {
+			await update({ reset: false });
+		};
+
 	// Shared enhance handler for the add/edit event rows: keep the inputs, then
 	// reset the row on success.
 	const saveEnhance =
@@ -115,7 +126,12 @@
 			</div>
 
 			{#if data.canEdit}
-				<form method="POST" action="?/savePerson" use:enhance class="flex flex-col gap-3">
+				<form
+					method="POST"
+					action="?/savePerson"
+					use:enhance={keepEnhance}
+					class="flex flex-col gap-3"
+				>
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
 							Given name(s)

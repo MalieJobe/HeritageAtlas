@@ -66,54 +66,64 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 
 	const { treeId, personId } = params;
 
-	const { data: tree } = await supabase
-		.from('trees')
-		.select('id, name')
-		.eq('id', treeId)
-		.maybeSingle();
+	// Phase 1 — every read that only needs the tree/person ids, fired in parallel
+	// (this load used to run ~10 queries back-to-back, which is what made every save
+	// feel slow; 3.5a).
+	const [
+		{ data: tree },
+		{ data: person },
+		{ data: membership },
+		{ data: everyone },
+		{ data: photoRows },
+		{ data: allPartners },
+		{ data: allLinks },
+		{ data: eventRows },
+		{ data: placeRows }
+	] = await Promise.all([
+		supabase.from('trees').select('id, name').eq('id', treeId).maybeSingle(),
+		supabase
+			.from('persons')
+			.select(
+				'id, given_names, surname, birth_surname, nickname, sex, gender, notes, profile_photo_path'
+			)
+			.eq('id', personId)
+			.eq('tree_id', treeId)
+			.maybeSingle(),
+		supabase
+			.from('tree_members')
+			.select('role')
+			.eq('tree_id', treeId)
+			.eq('user_id', user.id)
+			.maybeSingle(),
+		// Everyone in the tree, with the fields the relationship pickers + mini-graph need.
+		supabase
+			.from('persons')
+			.select('id, given_names, surname, nickname, sex, profile_photo_path')
+			.eq('tree_id', treeId),
+		supabase
+			.from('person_photos')
+			.select('id, path, position')
+			.eq('tree_id', treeId)
+			.eq('person_id', personId)
+			.order('position'),
+		// All edges in the tree — small enough to fetch whole; needed for the induced subgraph.
+		supabase.from('partnerships').select('id, partner_a, partner_b, status').eq('tree_id', treeId),
+		supabase.from('parent_child_links').select('id, parent_id, child_id').eq('tree_id', treeId),
+		supabase
+			.from('events')
+			.select(
+				'id, type, label, note, event_date, event_date_end, event_qualifier, event_precision, place:places(id, name, lat, lng)'
+			)
+			.eq('tree_id', treeId)
+			.eq('person_id', personId),
+		supabase.from('places').select('*').eq('tree_id', treeId).order('name')
+	]);
 	if (!tree) error(404, 'Tree not found');
-
-	const { data: person } = await supabase
-		.from('persons')
-		.select(
-			'id, given_names, surname, birth_surname, nickname, sex, gender, notes, profile_photo_path'
-		)
-		.eq('id', personId)
-		.eq('tree_id', treeId)
-		.maybeSingle();
 	if (!person) error(404, 'Person not found');
 
-	const { data: membership } = await supabase
-		.from('tree_members')
-		.select('role')
-		.eq('tree_id', treeId)
-		.eq('user_id', user.id)
-		.maybeSingle();
 	const canEdit = membership?.role === 'owner' || membership?.role === 'editor';
-
-	// Everyone in the tree, with the fields the relationship pickers and mini-graph
-	// avatars need.
-	const { data: everyone } = await supabase
-		.from('persons')
-		.select('id, given_names, surname, nickname, sex, profile_photo_path')
-		.eq('tree_id', treeId);
 	const all = everyone ?? [];
 	const personById = new Map(all.map((p) => [p.id, p]));
-
-	// This person's gallery photos, in display order.
-	const { data: photoRows } = await supabase
-		.from('person_photos')
-		.select('id, path, position')
-		.eq('tree_id', treeId)
-		.eq('person_id', personId)
-		.order('position');
-
-	// All edges in the tree — small enough to fetch whole, and we need them to build
-	// the induced subgraph for the mini tree (not just edges touching this person).
-	const [{ data: allPartners }, { data: allLinks }] = await Promise.all([
-		supabase.from('partnerships').select('id, partner_a, partner_b, status').eq('tree_id', treeId),
-		supabase.from('parent_child_links').select('id, parent_id, child_id').eq('tree_id', treeId)
-	]);
 	const partnershipsAll = allPartners ?? [];
 	const linksAll = allLinks ?? [];
 
@@ -125,6 +135,10 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 	const parentLinks = linkRowsSafe.filter((r) => r.child_id === personId);
 	const childLinks = linkRowsSafe.filter((r) => r.parent_id === personId);
 	const parentIds = parentLinks.map((r) => r.parent_id);
+	const partnerIds = partnerRowsSafe.map((r) =>
+		r.partner_a === personId ? r.partner_b : r.partner_a
+	);
+	const childIds = childLinks.map((r) => r.child_id);
 
 	// Siblings share at least one parent (and aren't this person).
 	const siblingIds =
@@ -134,15 +148,25 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 				].filter((id) => id !== personId)
 			: [];
 
-	// Batch-sign the profile photos we'll actually show (this person + the people in
-	// the mini-graph). External URLs pass through; bucket paths sign in one trip.
+	const hasBirth = (eventRows ?? []).some((e) => e.type === 'birth');
+
+	// The people whose profile photo we'll show, and the mini-graph subset — both
+	// derivable from the raw rows, so we can fan out phase 2 immediately.
 	const relatedIds = new Set<string>([
 		personId,
-		...partnerRowsSafe.map((r) => (r.partner_a === personId ? r.partner_b : r.partner_a)),
+		...partnerIds,
 		...parentIds,
-		...childLinks.map((r) => r.child_id),
+		...childIds,
 		...siblingIds
 	]);
+	const subsetIds = new Set<string>([
+		personId,
+		...parentIds,
+		...partnerIds,
+		...childIds,
+		...siblingIds
+	]);
+
 	const paths: string[] = [];
 	for (const id of relatedIds) {
 		const path =
@@ -150,11 +174,27 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		if (path && !isExternal(path)) paths.push(path);
 	}
 	for (const r of photoRows ?? []) if (r.path && !isExternal(r.path)) paths.push(r.path);
+
+	// Phase 2 — sign the photos, fetch birth/death years for the subset, and resolve
+	// the default place, all in parallel (each only needs phase-1 results).
+	const [signedRes, { data: yearEvents }, defaultPlace] = await Promise.all([
+		paths.length > 0
+			? supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 3600)
+			: Promise.resolve({ data: [] as { path: string; signedUrl: string }[] }),
+		supabase
+			.from('events')
+			.select('person_id, type, event_date')
+			.eq('tree_id', treeId)
+			.in('type', ['birth', 'death'])
+			.in('person_id', [...subsetIds]),
+		// A first birth inherits the parent's location; any later event starts from
+		// this person's own last known place to save re-typing it.
+		hasBirth
+			? inheritedPlace(supabase, treeId, [personId])
+			: parentDefaultPlace(supabase, treeId, personId)
+	]);
 	const signed = new Map<string, string>();
-	if (paths.length > 0) {
-		const { data: urls } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 3600);
-		for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
-	}
+	for (const u of signedRes.data ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
 	const resolvePhoto = (path: string | null | undefined): string | null =>
 		path ? (isExternal(path) ? path : (signed.get(path) ?? null)) : null;
 
@@ -198,14 +238,6 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 
 	// Events — birth/residence/death facts, shown as a table sorted by date; each
 	// row also carries what the inline edit form needs.
-	const { data: eventRows } = await supabase
-		.from('events')
-		.select(
-			'id, type, label, note, event_date, event_date_end, event_qualifier, event_precision, place:places(id, name, lat, lng)'
-		)
-		.eq('tree_id', treeId)
-		.eq('person_id', personId);
-
 	const events = (eventRows ?? [])
 		.map((row) => {
 			const place: PlaceSelection | null = row.place
@@ -240,37 +272,11 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		});
 
 	// Birth is expected on everyone — default a new event to it when missing.
-	const hasBirth = events.some((e) => e.type === 'birth');
 	const defaultType: EventType = hasBirth ? 'residence' : 'birth';
 
-	const { data: placeRows } = await supabase
-		.from('places')
-		.select('*')
-		.eq('tree_id', treeId)
-		.order('name');
-	// Pre-fill the place: a first birth inherits the parent's location; any later
-	// event (a new residence, or a death) starts from this person's own last known
-	// place (their most recent residence/birth) to save re-typing it.
-	const defaultPlace = hasBirth
-		? await inheritedPlace(supabase, treeId, [personId])
-		: await parentDefaultPlace(supabase, treeId, personId);
-
 	// Mini family tree: this person + direct relatives, laid out with the same
-	// engine as the full tree (just fewer people). Persons need full node fields,
-	// edges are the induced subgraph among the subset.
-	const subsetIds = new Set<string>([
-		personId,
-		...parentIds,
-		...partners.map((p) => p.id),
-		...children.map((c) => c.id),
-		...siblingIds
-	]);
-	const { data: yearEvents } = await supabase
-		.from('events')
-		.select('person_id, type, event_date')
-		.eq('tree_id', treeId)
-		.in('type', ['birth', 'death'])
-		.in('person_id', [...subsetIds]);
+	// engine as the full tree (just fewer people). The subset + its birth/death
+	// years were already gathered in phase 2.
 	const yearOf = (iso: string | null) => {
 		const y = iso ? Number.parseInt(iso.slice(0, 4), 10) : NaN;
 		return Number.isFinite(y) ? y : null;
