@@ -25,10 +25,10 @@
 	let locatedCount = $derived(Object.keys(coords).length);
 	let submitting = $state(false);
 
-	async function onFile(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
+	let fileInput = $state<HTMLInputElement>();
+	let dragOver = $state(false);
+
+	async function handleFile(file: File) {
 		fileName = file.name;
 		parseError = null;
 		plan = null;
@@ -47,6 +47,21 @@
 		} catch {
 			parseError = 'This file could not be parsed as GEDCOM.';
 		}
+	}
+
+	function onFileInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) handleFile(file);
+		// Reset so picking the same file again still fires `change`.
+		input.value = '';
+	}
+
+	function onDrop(event: DragEvent) {
+		event.preventDefault();
+		dragOver = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (file) handleFile(file);
 	}
 
 	const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -113,16 +128,38 @@
 		</p>
 	</div>
 
-	<label
-		class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-sage bg-cream/40 px-4 py-8 text-center hover:bg-cream"
+	<button
+		type="button"
+		onclick={() => fileInput?.click()}
+		ondragenter={(e) => {
+			e.preventDefault();
+			dragOver = true;
+		}}
+		ondragover={(e) => {
+			e.preventDefault();
+			dragOver = true;
+		}}
+		ondragleave={() => (dragOver = false)}
+		ondrop={onDrop}
+		class="flex w-full cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors {dragOver
+			? 'border-clay bg-cream'
+			: 'border-sage bg-cream/40 hover:bg-cream'}"
 	>
 		<span class="text-2xl">⤓</span>
 		<span class="text-sm font-medium text-ink">
 			{fileName || 'Choose a .ged file'}
 		</span>
-		<span class="text-xs text-ink/50">GEDCOM 5.5.1 or 7.0</span>
-		<input type="file" accept=".ged,.gedcom,text/plain" class="hidden" onchange={onFile} />
-	</label>
+		<span class="text-xs text-ink/50"
+			>Click to browse or drag a file here · GEDCOM 5.5.1 or 7.0</span
+		>
+	</button>
+	<input
+		bind:this={fileInput}
+		type="file"
+		accept=".ged,.gedcom,text/plain"
+		class="hidden"
+		onchange={onFileInput}
+	/>
 
 	{#if parseError}
 		<p class="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
