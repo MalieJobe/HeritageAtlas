@@ -23,7 +23,8 @@
 	let playing = $state(false);
 	const SPEEDS = [1, 2, 4] as const;
 	let speed = $state<(typeof SPEEDS)[number]>(1);
-	const BASE_YEARS_PER_SEC = 8;
+	// 1× = 4 years/sec; 2×/4× scale from here, so halving this slows the whole scale.
+	const BASE_YEARS_PER_SEC = 4;
 
 	let atEnd = $derived(Math.round(year) >= rangeMax);
 	let singleYear = $derived(rangeMax <= rangeMin);
