@@ -142,13 +142,12 @@
 					<span class="text-lg leading-none text-clay">+</span> New tree
 				</button>
 			{/if}
-			<span
-				class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink/35"
-				title="Coming soon"
+			<a
+				href={resolve('/import')}
+				class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink/80 hover:bg-cream"
 			>
 				<span class="text-lg leading-none">⤓</span> Import GEDCOM
-				<span class="ml-auto text-[10px] tracking-wide uppercase">soon</span>
-			</span>
+			</a>
 		</div>
 	</div>
 

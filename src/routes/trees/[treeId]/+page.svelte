@@ -2,6 +2,8 @@
 	import { onMount, untrack } from 'svelte';
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { toasts } from '$lib/toast.svelte';
 	import FamilyGraph from '$lib/components/FamilyGraph.svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import Timeline from '$lib/components/Timeline.svelte';
@@ -15,6 +17,13 @@
 	let showNotes = $state(false);
 	onMount(() => {
 		showNotes = localStorage.getItem('ha:showNotes') === '1';
+		// Just landed here from a GEDCOM import → confirm, then clean the URL so a
+		// reload doesn't re-toast.
+		const imported = page.url.searchParams.get('imported');
+		if (imported) {
+			toasts.success(`Imported ${imported} ${imported === '1' ? 'person' : 'people'}.`);
+			history.replaceState(history.state, '', page.url.pathname);
+		}
 	});
 	$effect(() => {
 		if (browser) localStorage.setItem('ha:showNotes', showNotes ? '1' : '0');
