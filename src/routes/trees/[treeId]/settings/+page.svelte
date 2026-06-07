@@ -101,6 +101,23 @@
 		{#if form?.memberError}<p class="text-sm text-red-600">{form.memberError}</p>{/if}
 	</section>
 
+	<!-- Export -->
+	<section class="flex flex-col gap-2">
+		<div class="flex flex-col gap-0.5">
+			<h2 class="text-sm font-medium text-ink/80">Export</h2>
+			<p class="text-xs text-ink/45">
+				Download this tree as a GEDCOM 5.5.1 file you can open in other genealogy software.
+			</p>
+		</div>
+		<a
+			href={resolve('/trees/[treeId]/export', { treeId: data.tree.id })}
+			download
+			class="inline-flex w-fit items-center gap-2 rounded-md border border-sage bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-cream"
+		>
+			<span class="leading-none">⤓</span> Export GEDCOM
+		</a>
+	</section>
+
 	<!-- Invite (owner only) -->
 	{#if data.isOwner}
 		<section class="flex flex-col gap-3">
