@@ -46,9 +46,41 @@
 			element: HTMLButtonElement;
 			kind: 'dot' | 'cluster';
 			memberIds: string[];
+			// Current shown geo position + the latest target, so a year scrub can ease
+			// the dot to its new spot rather than snapping. `anim` is the rAF handle.
+			curLng: number;
+			curLat: number;
+			targetLng: number;
+			targetLat: number;
+			anim: number;
 		}
 	>();
 	/* eslint-enable svelte/prefer-svelte-reactivity */
+
+	// How long a dot takes to glide to a new location on a year change.
+	const MOVE_DURATION = 400;
+	const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+	/** Ease a marker from where it currently sits to a new lng/lat over MOVE_DURATION. */
+	function animateMarkerTo(
+		entry: { marker: import('maplibre-gl').Marker; curLng: number; curLat: number; anim: number },
+		toLng: number,
+		toLat: number
+	) {
+		const fromLng = entry.curLng;
+		const fromLat = entry.curLat;
+		if (fromLng === toLng && fromLat === toLat) return;
+		if (entry.anim) cancelAnimationFrame(entry.anim);
+		const start = performance.now();
+		const step = (now: number) => {
+			const k = easeOutCubic(Math.min(1, (now - start) / MOVE_DURATION));
+			entry.curLng = fromLng + (toLng - fromLng) * k;
+			entry.curLat = fromLat + (toLat - fromLat) * k;
+			entry.marker.setLngLat([entry.curLng, entry.curLat]);
+			entry.anim = k < 1 ? requestAnimationFrame(step) : 0;
+		};
+		entry.anim = requestAnimationFrame(step);
+	}
 
 	const MIN_DIST = 48; // dots are 44px — keep a little air between them
 	// Past this scatter footprint a crowd would land too far from the truth, so it
@@ -143,11 +175,21 @@
 					marker,
 					element,
 					kind: ins.kind,
-					memberIds: ins.kind === 'dot' ? [ins.id] : ins.memberIds
+					memberIds: ins.kind === 'dot' ? [ins.id] : ins.memberIds,
+					curLng: ins.lng,
+					curLat: ins.lat,
+					targetLng: ins.lng,
+					targetLat: ins.lat,
+					anim: 0
 				};
 				markers.set(key, entry);
-			} else {
-				entry.marker.setLngLat([ins.lng, ins.lat]);
+			} else if (ins.lng !== entry.targetLng || ins.lat !== entry.targetLat) {
+				// The person moved to a new place (year scrub) — glide there. A pan/zoom
+				// re-render keeps the same target, so it never re-triggers the tween;
+				// MapLibre reprojects the (unchanged) geo position itself.
+				entry.targetLng = ins.lng;
+				entry.targetLat = ins.lat;
+				animateMarkerTo(entry, ins.lng, ins.lat);
 			}
 			entry.marker.setOffset(ins.kind === 'dot' ? [ins.offsetX, ins.offsetY] : [0, 0]);
 			// Grey out a lone dot once its person has died by this year (unborn people
@@ -162,6 +204,7 @@
 		// Drop markers that no longer correspond to a rendered dot/badge.
 		for (const [key, entry] of markers) {
 			if (!live.has(key)) {
+				if (entry.anim) cancelAnimationFrame(entry.anim);
 				entry.marker.remove();
 				markers.delete(key);
 			}
@@ -361,7 +404,10 @@
 
 	onDestroy(() => {
 		clearTimeout(followTimer);
-		for (const entry of markers.values()) entry.marker.remove();
+		for (const entry of markers.values()) {
+			if (entry.anim) cancelAnimationFrame(entry.anim);
+			entry.marker.remove();
+		}
 		markers.clear();
 		map?.remove();
 	});
