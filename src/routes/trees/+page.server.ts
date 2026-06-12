@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { translate } from '$lib/i18n/translate';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
@@ -36,17 +37,17 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 };
 
 export const actions: Actions = {
-	create: async ({ request, locals: { supabase, user } }) => {
+	create: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 
 		const formData = await request.formData();
 		const name = String(formData.get('name') ?? '').trim();
 
 		if (!name) {
-			return fail(400, { name, error: 'Please enter a tree name.' });
+			return fail(400, { name, error: translate(locale, 'tree.list.errorNoName') });
 		}
 		if (name.length > 200) {
-			return fail(400, { name, error: 'Name must be 200 characters or fewer.' });
+			return fail(400, { name, error: translate(locale, 'tree.list.errorNameTooLong') });
 		}
 
 		const { data, error: dbError } = await supabase

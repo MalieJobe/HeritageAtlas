@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { requireEditableTree } from '$lib/server/treeAccess';
+import { translate } from '$lib/i18n/translate';
 import type { Actions, PageServerLoad } from './$types';
 
 function field(formData: FormData, name: string): string | null {
@@ -14,7 +15,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 };
 
 export const actions: Actions = {
-	default: async ({ params, request, locals: { supabase, user } }) => {
+	default: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -29,7 +30,7 @@ export const actions: Actions = {
 		};
 
 		if (!values.given_names && !values.surname && !values.nickname) {
-			return fail(400, { ...values, error: 'Enter at least a given name, surname, or nickname.' });
+			return fail(400, { ...values, error: translate(locale, 'person.validation.enterName') });
 		}
 
 		const { data, error: dbError } = await supabase

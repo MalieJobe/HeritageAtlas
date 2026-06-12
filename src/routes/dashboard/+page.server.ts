@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { personName } from '$lib/person';
+import { translate } from '$lib/i18n';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Lower-bound year from an ISO date string, or null. */
@@ -195,11 +196,12 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 };
 
 export const actions: Actions = {
-	create: async ({ request, locals: { supabase, user } }) => {
+	create: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const name = String((await request.formData()).get('name') ?? '').trim();
-		if (!name) return fail(400, { error: 'Please enter a tree name.' });
-		if (name.length > 200) return fail(400, { error: 'Name must be 200 characters or fewer.' });
+		if (!name) return fail(400, { error: translate(locale, 'dashboard.treeNameRequired') });
+		if (name.length > 200)
+			return fail(400, { error: translate(locale, 'dashboard.treeNameTooLong') });
 
 		const { data, error: dbError } = await supabase
 			.from('trees')

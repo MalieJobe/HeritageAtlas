@@ -3,14 +3,16 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { toasts } from '$lib/toast.svelte';
+	import { useI18n } from '$lib/i18n';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	const t = useI18n().t;
 
 	let confirmingDelete = $state(false);
 
 	function memberLabel(member: PageData['members'][number]): string {
-		return member.displayName ?? 'Unnamed member';
+		return member.displayName ?? t('tree.settings.unnamedMember');
 	}
 
 	// Public share link.
@@ -21,15 +23,15 @@
 		try {
 			await navigator.clipboard.writeText(shareUrl);
 			copied = true;
-			toasts.success('Link copied.');
+			toasts.success(t('tree.settings.linkCopied'));
 			setTimeout(() => (copied = false), 1500);
 		} catch {
-			toasts.error('Could not copy — select and copy manually.');
+			toasts.error(t('tree.settings.copyFailed'));
 		}
 	}
 </script>
 
-<svelte:head><title>Settings · {data.tree.name} · HeritageAtlas</title></svelte:head>
+<svelte:head><title>{t('tree.settings.title', { name: data.tree.name })}</title></svelte:head>
 
 <div class="flex flex-col gap-8">
 	<div class="flex flex-col gap-1">
@@ -37,14 +39,14 @@
 			href={resolve('/trees/[treeId]', { treeId: data.tree.id })}
 			class="text-sm text-ink/60 hover:text-ink"
 		>
-			← {data.tree.name}
+			{t('tree.settings.backTo', { name: data.tree.name })}
 		</a>
-		<h1 class="text-2xl font-semibold text-ink">Tree settings</h1>
+		<h1 class="text-2xl font-semibold text-ink">{t('tree.settings.heading')}</h1>
 	</div>
 
 	<!-- Name (rename is owner-only) -->
 	<section class="flex flex-col gap-2">
-		<h2 class="text-sm font-medium text-ink/80">Name</h2>
+		<h2 class="text-sm font-medium text-ink/80">{t('tree.settings.nameSection')}</h2>
 		{#if data.isOwner}
 			<form method="POST" action="?/rename" use:enhance class="flex gap-2">
 				<input
@@ -58,13 +60,13 @@
 					type="submit"
 					class="rounded-md bg-clay px-4 py-2 font-medium text-ink hover:bg-clay/80"
 				>
-					Rename
+					{t('tree.settings.renameButton')}
 				</button>
 			</form>
 			{#if form?.renameError}
 				<p class="text-sm text-red-600">{form.renameError}</p>
 			{:else if form?.renamed}
-				<p class="text-sm text-green-700">Tree renamed.</p>
+				<p class="text-sm text-green-700">{t('tree.settings.renamed')}</p>
 			{/if}
 		{:else}
 			<p class="text-ink">{data.tree.name}</p>
@@ -73,13 +75,13 @@
 
 	<!-- Members -->
 	<section class="flex flex-col gap-2">
-		<h2 class="text-sm font-medium text-ink/80">Members</h2>
+		<h2 class="text-sm font-medium text-ink/80">{t('tree.settings.membersSection')}</h2>
 		<ul class="flex flex-col divide-y divide-sage/40 rounded-lg border border-sage bg-white">
 			{#each data.members as member (member.userId)}
 				<li class="flex items-center justify-between gap-3 px-4 py-3">
 					<span class="min-w-0 truncate text-ink">
 						{memberLabel(member)}
-						{#if member.isYou}<span class="text-ink/40">(you)</span>{/if}
+						{#if member.isYou}<span class="text-ink/40">{t('tree.settings.you')}</span>{/if}
 					</span>
 					{#if data.isOwner && member.role !== 'owner'}
 						<div class="flex shrink-0 items-center gap-2">
@@ -91,8 +93,8 @@
 									onchange={(e) => e.currentTarget.form?.requestSubmit()}
 									class="rounded-md border border-sage bg-white px-2 py-1 text-xs text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 								>
-									<option value="editor">editor</option>
-									<option value="viewer">viewer</option>
+									<option value="editor">{t('tree.settings.roleEditor')}</option>
+									<option value="viewer">{t('tree.settings.roleViewer')}</option>
 								</select>
 							</form>
 							<form method="POST" action="?/removeMember" use:enhance>
@@ -101,7 +103,7 @@
 									type="submit"
 									class="rounded-md border border-sage px-2 py-1 text-xs text-ink/60 hover:bg-cream hover:text-red-600"
 								>
-									Remove
+									{t('tree.settings.removeButton')}
 								</button>
 							</form>
 						</div>
@@ -122,10 +124,9 @@
 	{#if data.isOwner}
 		<section class="flex flex-col gap-3">
 			<div class="flex flex-col gap-0.5">
-				<h2 class="text-sm font-medium text-ink/80">Public share link</h2>
+				<h2 class="text-sm font-medium text-ink/80">{t('tree.settings.shareSection')}</h2>
 				<p class="text-xs text-ink/45">
-					Anyone with the link <em>and</em> the password can view this tree (read-only, no account needed).
-					Photos are hidden on the shared view for privacy.
+					{t('tree.settings.shareDesc')}
 				</p>
 			</div>
 
@@ -142,19 +143,19 @@
 							onclick={copyShareUrl}
 							class="shrink-0 rounded-md border border-sage px-3 py-1.5 text-sm text-ink hover:bg-cream"
 						>
-							{copied ? 'Copied' : 'Copy'}
+							{copied ? t('tree.settings.copiedButton') : t('tree.settings.copyButton')}
 						</button>
 					</div>
 					<div class="flex flex-wrap items-end gap-2">
 						<form method="POST" action="?/share" use:enhance class="flex items-end gap-2">
 							<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-								Reset password
+								{t('tree.settings.resetPasswordLabel')}
 								<input
 									name="password"
 									type="password"
 									minlength="4"
 									required
-									placeholder="New password"
+									placeholder={t('tree.settings.newPasswordPlaceholder')}
 									class="rounded-md border border-sage bg-white px-2 py-1.5 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 								/>
 							</label>
@@ -162,7 +163,7 @@
 								type="submit"
 								class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink hover:bg-cream"
 							>
-								Update
+								{t('tree.settings.updateButton')}
 							</button>
 						</form>
 						<form method="POST" action="?/unshare" use:enhance>
@@ -170,7 +171,7 @@
 								type="submit"
 								class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink/70 hover:bg-cream hover:text-red-600"
 							>
-								Stop sharing
+								{t('tree.settings.stopSharingButton')}
 							</button>
 						</form>
 					</div>
@@ -178,13 +179,13 @@
 			{:else}
 				<form method="POST" action="?/share" use:enhance class="flex flex-wrap items-end gap-2">
 					<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-						Password
+						{t('tree.settings.passwordLabel')}
 						<input
 							name="password"
 							type="password"
 							minlength="4"
 							required
-							placeholder="At least 4 characters"
+							placeholder={t('tree.settings.passwordPlaceholder')}
 							class="rounded-md border border-sage bg-white px-3 py-2 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 						/>
 					</label>
@@ -192,7 +193,7 @@
 						type="submit"
 						class="rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80"
 					>
-						Create share link
+						{t('tree.settings.createShareButton')}
 					</button>
 				</form>
 			{/if}
@@ -203,9 +204,9 @@
 	<!-- Export -->
 	<section class="flex flex-col gap-2">
 		<div class="flex flex-col gap-0.5">
-			<h2 class="text-sm font-medium text-ink/80">Export</h2>
+			<h2 class="text-sm font-medium text-ink/80">{t('tree.settings.exportSection')}</h2>
 			<p class="text-xs text-ink/45">
-				Download this tree as a GEDCOM 5.5.1 file you can open in other genealogy software.
+				{t('tree.settings.exportDesc')}
 			</p>
 		</div>
 		<a
@@ -213,7 +214,7 @@
 			download
 			class="inline-flex w-fit items-center gap-2 rounded-md border border-sage bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-cream"
 		>
-			<span class="leading-none">⤓</span> Export GEDCOM
+			{t('tree.settings.exportButton')}
 		</a>
 	</section>
 
@@ -221,10 +222,9 @@
 	{#if data.isOwner}
 		<section class="flex flex-col gap-3">
 			<div class="flex flex-col gap-0.5">
-				<h2 class="text-sm font-medium text-ink/80">Invite a member</h2>
+				<h2 class="text-sm font-medium text-ink/80">{t('tree.settings.inviteSection')}</h2>
 				<p class="text-xs text-ink/45">
-					The invitation appears in HeritageAtlas when they sign in with this email (no email is
-					sent yet).
+					{t('tree.settings.inviteDesc')}
 				</p>
 			</div>
 
@@ -233,7 +233,7 @@
 					name="email"
 					type="email"
 					required
-					placeholder="name@example.com"
+					placeholder={t('tree.settings.inviteEmailPlaceholder')}
 					value={form && 'email' in form ? (form.email ?? '') : ''}
 					class="min-w-56 flex-1 rounded-md border border-sage bg-white px-3 py-2 text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 				/>
@@ -241,23 +241,23 @@
 					name="role"
 					class="rounded-md border border-sage bg-white px-3 py-2 text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 				>
-					<option value="viewer">Viewer</option>
-					<option value="editor">Editor</option>
+					<option value="viewer">{t('tree.settings.inviteRoleViewer')}</option>
+					<option value="editor">{t('tree.settings.inviteRoleEditor')}</option>
 				</select>
 				<button
 					type="submit"
 					class="rounded-md bg-clay px-4 py-2 font-medium text-ink hover:bg-clay/80"
 				>
-					Invite
+					{t('tree.settings.inviteButton')}
 				</button>
 			</form>
 
 			{#if form?.inviteError}
 				<p class="text-sm text-red-600">{form.inviteError}</p>
 			{:else if form?.invited}
-				<p class="text-sm text-green-700">Invited {form.invited}.</p>
+				<p class="text-sm text-green-700">{t('tree.settings.invited', { email: form.invited })}</p>
 			{:else if form?.revoked}
-				<p class="text-sm text-green-700">Invitation revoked.</p>
+				<p class="text-sm text-green-700">{t('tree.settings.revoked')}</p>
 			{/if}
 
 			{#if data.invitations.length > 0}
@@ -274,7 +274,7 @@
 								<form method="POST" action="?/revoke" use:enhance>
 									<input type="hidden" name="invitationId" value={invite.id} />
 									<button type="submit" class="text-sm text-ink/40 hover:text-red-600">
-										Revoke
+										{t('tree.settings.revokeButton')}
 									</button>
 								</form>
 							</div>
@@ -288,29 +288,28 @@
 	<!-- Danger zone (owner only) -->
 	{#if data.isOwner}
 		<section class="flex flex-col gap-2 border-t border-sage pt-6">
-			<h2 class="text-sm font-medium text-red-700">Delete tree</h2>
+			<h2 class="text-sm font-medium text-red-700">{t('tree.settings.deleteSection')}</h2>
 			<p class="text-sm text-ink/60">
-				Permanently deletes this tree and everyone, every relationship, and every event in it. This
-				cannot be undone.
+				{t('tree.settings.deleteWarning')}
 			</p>
 			{#if form?.deleteError}
 				<p class="text-sm text-red-600">{form.deleteError}</p>
 			{/if}
 			{#if confirmingDelete}
 				<form method="POST" action="?/delete" use:enhance class="flex items-center gap-2">
-					<span class="text-sm text-ink/80">Are you sure?</span>
+					<span class="text-sm text-ink/80">{t('tree.settings.deleteConfirmQuestion')}</span>
 					<button
 						type="submit"
 						class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
 					>
-						Yes, delete it
+						{t('tree.settings.deleteConfirmButton')}
 					</button>
 					<button
 						type="button"
 						onclick={() => (confirmingDelete = false)}
 						class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
 					>
-						Cancel
+						{t('common.cancel')}
 					</button>
 				</form>
 			{:else}
@@ -319,7 +318,7 @@
 					onclick={() => (confirmingDelete = true)}
 					class="self-start rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
 				>
-					Delete this tree
+					{t('tree.settings.deleteButton')}
 				</button>
 			{/if}
 		</section>

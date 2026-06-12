@@ -1,8 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
 import { loadTreeViewData } from '$lib/server/treeViewData';
+import { translate } from '$lib/i18n/translate';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
+export const load: PageServerLoad = async ({ params, locals: { supabase, user, locale } }) => {
 	if (!user) redirect(303, '/auth/login');
 
 	// RLS limits this to trees the user is a member of; anything else returns
@@ -14,7 +15,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.maybeSingle();
 
 	if (!tree) {
-		error(404, 'Tree not found');
+		error(404, translate(locale, 'tree.notFound'));
 	}
 
 	const { data: membership } = await supabase

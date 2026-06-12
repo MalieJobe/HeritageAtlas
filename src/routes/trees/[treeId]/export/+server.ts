@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { fuzzyDateFromColumns } from '$lib/fuzzyDate';
 import { buildGedcom, type ExportPerson, type ExportSex } from '$lib/gedcom/export';
+import { translate } from '$lib/i18n/translate';
 import type { RequestHandler } from './$types';
 
 function normalizeSex(value: string | null): ExportSex {
@@ -18,8 +19,8 @@ function fileName(name: string): string {
 }
 
 /** GET /trees/[treeId]/export → downloads the tree as GEDCOM 5.5.1 (task 5.7). */
-export const GET: RequestHandler = async ({ params, locals: { supabase, user } }) => {
-	if (!user) error(401, 'Not authenticated');
+export const GET: RequestHandler = async ({ params, locals: { supabase, user, locale } }) => {
+	if (!user) error(401, translate(locale, 'common.notAuthenticated'));
 	const treeId = params.treeId;
 
 	const { data: tree } = await supabase
@@ -27,7 +28,7 @@ export const GET: RequestHandler = async ({ params, locals: { supabase, user } }
 		.select('id, name')
 		.eq('id', treeId)
 		.maybeSingle();
-	if (!tree) error(404, 'Tree not found'); // RLS hides trees the user can't see
+	if (!tree) error(404, translate(locale, 'tree.notFound')); // RLS hides trees the user can't see
 
 	const [{ data: persons }, { data: events }, { data: partnerships }, { data: links }] =
 		await Promise.all([

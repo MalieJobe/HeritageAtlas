@@ -1,0 +1,10 @@
+{
+	"share.title": "{name} · Geteilter Stammbaum · HeritageAtlas",
+	"share.passwordProtected": "Dieser geteilte Stammbaum ist passwortgeschützt.",
+	"share.passwordPlaceholder": "Passwort",
+	"share.viewTree": "Stammbaum anzeigen",
+	"share.readOnlyNotice": "Geteilte, schreibgeschützte Ansicht · Fotos aus Datenschutzgründen ausgeblendet",
+	"share.enterPassword": "Bitte gib das Passwort ein.",
+	"share.incorrectPassword": "Das Passwort ist falsch.",
+	"share.invalidLink": "Dieser geteilte Stammbaum-Link ist ungültig."
+}

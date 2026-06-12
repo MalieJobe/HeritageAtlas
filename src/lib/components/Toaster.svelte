@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { fade, fly } from 'svelte/transition';
 	import { toasts, type ToastKind } from '$lib/toast.svelte';
+	import { useI18n } from '$lib/i18n';
+
+	const t = useI18n().t;
 
 	const STYLES: Record<ToastKind, string> = {
 		success: 'border-sage bg-sage/25 text-ink',
@@ -13,7 +16,7 @@
 <div
 	class="pointer-events-none fixed right-3 bottom-3 z-[100] flex w-[min(92vw,22rem)] flex-col gap-2"
 	role="region"
-	aria-label="Notifications"
+	aria-label={t('common.notifications')}
 	aria-live="polite"
 >
 	{#each toasts.items as toast (toast.id)}
@@ -29,7 +32,7 @@
 			<button
 				type="button"
 				class="-mr-1 shrink-0 rounded px-1 text-ink/40 hover:text-ink"
-				aria-label="Dismiss"
+				aria-label={t('common.dismiss')}
 				onclick={() => toasts.dismiss(toast.id)}>✕</button
 			>
 		</div>

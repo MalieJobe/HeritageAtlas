@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { useI18n } from '$lib/i18n';
+
+	const t = useI18n().t;
 
 	let {
 		year = $bindable(),
@@ -95,7 +98,7 @@
 			onclick={togglePlay}
 			disabled={singleYear}
 			class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-clay text-ink shadow-sm transition hover:bg-clay/80 disabled:cursor-not-allowed disabled:opacity-40"
-			aria-label={playing ? 'Pause' : 'Play'}
+			aria-label={playing ? t('map.timeline.pause') : t('map.timeline.play')}
 		>
 			{#if playing}
 				<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
@@ -131,7 +134,7 @@
 				value={displayYear}
 				oninput={onScrub}
 				disabled={singleYear}
-				aria-label="Year"
+				aria-label={t('map.timeline.yearLabel')}
 				class="ha-range relative w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed"
 			/>
 		</div>
@@ -158,7 +161,7 @@
 		{#if editingRange}
 			<div class="flex items-center gap-2">
 				<label class="flex items-center gap-1">
-					From
+					{t('map.timeline.from')}
 					<input
 						type="number"
 						value={rangeMin}
@@ -167,7 +170,7 @@
 					/>
 				</label>
 				<label class="flex items-center gap-1">
-					to
+					{t('map.timeline.to')}
 					<input
 						type="number"
 						value={rangeMax}
@@ -177,7 +180,7 @@
 				</label>
 				{#if overridden}
 					<button type="button" onclick={resetRange} class="text-ink/50 underline hover:text-ink">
-						reset
+						{t('map.timeline.reset')}
 					</button>
 				{/if}
 				<button
@@ -185,13 +188,13 @@
 					onclick={() => (editingRange = false)}
 					class="text-ink/50 hover:text-ink"
 				>
-					done
+					{t('map.timeline.done')}
 				</button>
 			</div>
 		{:else}
 			<span
 				>{rangeMin} – {rangeMax}{#if overridden}<span class="text-ink/35">
-						(custom)</span
+						{t('map.timeline.custom')}</span
 					>{/if}</span
 			>
 			<button
@@ -199,7 +202,7 @@
 				onclick={() => (editingRange = true)}
 				class="underline underline-offset-2 hover:text-ink"
 			>
-				Adjust range
+				{t('map.timeline.adjustRange')}
 			</button>
 		{/if}
 	</div>

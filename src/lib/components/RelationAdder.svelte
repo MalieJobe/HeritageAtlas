@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { tick, type Snippet } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { useI18n } from '$lib/i18n';
 	import FuzzyDateInput from '$lib/components/FuzzyDateInput.svelte';
 	import PlacePicker from '$lib/components/PlacePicker.svelte';
 	import type { Place, PlaceSelection } from '$lib/place';
+
+	const t = useI18n().t;
 
 	let {
 		action,
@@ -116,7 +119,7 @@
 				autocomplete="off"
 				bind:value={query}
 				onfocus={() => (open = true)}
-				placeholder="Add {noun} — search a name or create new…"
+				placeholder={t('map.relation.searchPlaceholder', { noun })}
 				class="{inputClass} w-full"
 			/>
 			{#if open}
@@ -133,14 +136,17 @@
 							{c.name}
 						</button>
 					{:else}
-						<p class="px-3 py-2 text-xs text-ink/45">No matching people.</p>
+						<p class="px-3 py-2 text-xs text-ink/45">{t('map.relation.noPeople')}</p>
 					{/each}
 					<button
 						type="button"
 						onclick={startCreate}
 						class="block w-full border-t border-sage/60 bg-cream/40 px-3 py-2 text-left text-sm font-medium text-ink hover:bg-cream"
 					>
-						＋ Create new {noun}{query.trim() ? ` “${query.trim()}”` : ''}
+						{t('map.relation.createNew', {
+							noun,
+							suffix: query.trim() ? ` “${query.trim()}”` : ''
+						})}
 					</button>
 				</div>
 			{/if}
@@ -149,7 +155,7 @@
 		<input type="hidden" name="mode" value="existing" />
 		<input type="hidden" name="personId" value={selId} />
 		<p class="text-sm text-ink">
-			Link <span class="font-medium">{selName}</span>
+			{t('map.relation.link')} <span class="font-medium">{selName}</span>
 		</p>
 		{@render extra?.()}
 		<div class="flex items-center gap-2">
@@ -160,7 +166,7 @@
 				{verb}
 			</button>
 			<button type="button" onclick={reset} class="text-xs text-ink/50 hover:text-ink"
-				>Cancel</button
+				>{t('common.cancel')}</button
 			>
 		</div>
 	{:else}
@@ -169,34 +175,34 @@
 		<input type="hidden" name="type" value="birth" />
 		<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/70">
-				Given name(s)
+				{t('common.givenNames')}
 				<input name="given_names" type="text" bind:value={given} class={inputClass} />
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/70">
-				Surname
+				{t('common.surname')}
 				<input name="surname" type="text" class={inputClass} />
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/70">
-				Birth / maiden surname
+				{t('common.birthSurname')}
 				<input name="birth_surname" type="text" class={inputClass} />
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/70">
-				Sex
+				{t('common.sex')}
 				<select name="sex" class={inputClass}>
-					<option value="">Unspecified</option>
-					<option value="female">Female</option>
-					<option value="male">Male</option>
-					<option value="other">Other</option>
+					<option value="">{t('common.sexUnspecified')}</option>
+					<option value="female">{t('common.sexFemale')}</option>
+					<option value="male">{t('common.sexMale')}</option>
+					<option value="other">{t('common.sexOther')}</option>
 				</select>
 			</label>
 		</div>
 		<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 			<div class="flex flex-col gap-1 text-xs font-medium text-ink/70">
-				Born
+				{t('common.born')}
 				<FuzzyDateInput />
 			</div>
 			<div class="flex flex-col gap-1 text-xs font-medium text-ink/70">
-				Birthplace
+				{t('map.relation.birthplace')}
 				<PlacePicker {places} selection={placeSel} onchange={(s) => (placeSel = s)} />
 				<input
 					type="hidden"
@@ -211,10 +217,10 @@
 				type="submit"
 				class="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80"
 			>
-				Create &amp; {verb.toLowerCase()}
+				{t('map.relation.createAndVerb', { verb: verb.toLowerCase() })}
 			</button>
 			<button type="button" onclick={reset} class="text-xs text-ink/50 hover:text-ink"
-				>Cancel</button
+				>{t('common.cancel')}</button
 			>
 		</div>
 	{/if}

@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { translate } from '$lib/i18n/translate';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
@@ -15,7 +16,7 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 };
 
 export const actions: Actions = {
-	accept: async ({ request, locals: { supabase, user } }) => {
+	accept: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 
 		const formData = await request.formData();
@@ -27,7 +28,7 @@ export const actions: Actions = {
 			.eq('id', invitationId)
 			.maybeSingle();
 		if (!inv) {
-			return fail(400, { error: 'That invitation is no longer available.' });
+			return fail(400, { error: translate(locale, 'invitations.noLongerAvailable') });
 		}
 
 		// Allowed by the "Invitees can join" RLS policy because a matching invite exists.

@@ -3,6 +3,7 @@ import { personName } from '$lib/person';
 import { requireEditableTree } from '$lib/server/treeAccess';
 import { parseEventForm } from '$lib/server/eventForm';
 import { inheritedPlace } from '$lib/server/parentPlace';
+import { translate } from '$lib/i18n/translate';
 import type { Actions, PageServerLoad } from './$types';
 
 function field(formData: FormData, name: string): string | null {
@@ -10,7 +11,7 @@ function field(formData: FormData, name: string): string | null {
 	return value === '' ? null : value;
 }
 
-export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
+export const load: PageServerLoad = async ({ params, locals: { supabase, user, locale } }) => {
 	if (!user) redirect(303, '/auth/login');
 	const tree = await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 		.eq('id', params.personId)
 		.eq('tree_id', params.treeId)
 		.maybeSingle();
-	if (!parent) error(404, 'Person not found');
+	if (!parent) error(404, translate(locale, 'person.notFound'));
 
 	const [{ data: places }, defaultPlace] = await Promise.all([
 		supabase.from('places').select('*').eq('tree_id', params.treeId).order('name'),
@@ -37,7 +38,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 };
 
 export const actions: Actions = {
-	default: async ({ params, request, locals: { supabase, user } }) => {
+	default: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -54,7 +55,7 @@ export const actions: Actions = {
 		if (!person.given_names && !person.surname && !person.nickname) {
 			return fail(400, {
 				...person,
-				error: 'Enter at least a given name, surname, or nickname.'
+				error: translate(locale, 'person.validation.enterName')
 			});
 		}
 
@@ -66,7 +67,10 @@ export const actions: Actions = {
 		} catch (e) {
 			return fail(400, {
 				...person,
-				error: e instanceof Error ? e.message : 'Could not save the birthplace.'
+				error:
+					e instanceof Error
+						? e.message
+						: translate(locale, 'person.validation.couldNotSaveBirthplace')
 			});
 		}
 
@@ -76,7 +80,10 @@ export const actions: Actions = {
 			.select('id')
 			.single();
 		if (personError || !child) {
-			return fail(400, { ...person, error: personError?.message ?? 'Could not add the child.' });
+			return fail(400, {
+				...person,
+				error: personError?.message ?? translate(locale, 'person.validation.couldNotAddChild')
+			});
 		}
 
 		const { error: linkError } = await supabase

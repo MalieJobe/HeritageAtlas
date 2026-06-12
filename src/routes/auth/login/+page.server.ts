@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
+import { translate } from '$lib/i18n';
 
 /** Only allow redirects to internal paths, to avoid open-redirect abuse. */
 function safeRedirect(target: string | null): string {
@@ -10,13 +11,13 @@ function safeRedirect(target: string | null): string {
 }
 
 export const actions: Actions = {
-	default: async ({ request, url, locals: { supabase } }) => {
+	default: async ({ request, url, locals: { supabase, locale } }) => {
 		const formData = await request.formData();
 		const email = String(formData.get('email') ?? '');
 		const password = String(formData.get('password') ?? '');
 
 		if (!email || !password) {
-			return fail(400, { email, error: 'Email and password are required.' });
+			return fail(400, { email, error: translate(locale, 'auth.emailPasswordRequired') });
 		}
 
 		const { error } = await supabase.auth.signInWithPassword({ email, password });

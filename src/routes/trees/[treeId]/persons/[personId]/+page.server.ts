@@ -9,6 +9,7 @@ import type { EventRowInitial } from '$lib/components/EventRowFields.svelte';
 import type { PlaceSelection } from '$lib/place';
 import { wouldCreateCycle } from '$lib/graph/cycle';
 import type { GraphData, GraphPerson, Sex } from '$lib/graph/types';
+import { translate } from '$lib/i18n/translate';
 import type { Actions, PageServerLoad } from './$types';
 
 const PHOTO_BUCKET = 'person-photos';
@@ -54,10 +55,15 @@ function normalizeSex(value: string | null): Sex {
 }
 
 /** Friendly message for the one-birth/one-death-per-person unique indexes. */
-function duplicateMessage(err: { code?: string; message: string }): string {
+function duplicateMessage(
+	err: { code?: string; message: string },
+	locale: Parameters<typeof translate>[0]
+): string {
 	if (err.code === '23505') {
-		if (err.message.includes('birth')) return 'This person already has a birth event.';
-		if (err.message.includes('death')) return 'This person already has a death event.';
+		if (err.message.includes('birth'))
+			return translate(locale, 'person.validation.alreadyHasBirth');
+		if (err.message.includes('death'))
+			return translate(locale, 'person.validation.alreadyHasDeath');
 	}
 	return err.message;
 }
@@ -73,7 +79,8 @@ type DB = Parameters<typeof requireEditableTree>[0];
 async function createPerson(
 	supabase: DB,
 	treeId: string,
-	formData: FormData
+	formData: FormData,
+	locale: Parameters<typeof translate>[0]
 ): Promise<{ id: string } | { error: string }> {
 	const values = {
 		given_names: field(formData, 'given_names'),
@@ -83,7 +90,7 @@ async function createPerson(
 		sex: field(formData, 'sex')
 	};
 	if (!values.given_names && !values.surname && !values.nickname) {
-		return { error: 'Enter at least a given name, surname, or nickname.' };
+		return { error: translate(locale, 'person.validation.enterName') };
 	}
 
 	// Validate the (optional) birth event up front so a bad place/date fails before
@@ -92,7 +99,12 @@ async function createPerson(
 	try {
 		birth = await parseEventForm(supabase, treeId, formData);
 	} catch (e) {
-		return { error: e instanceof Error ? e.message : 'Could not save the birthplace.' };
+		return {
+			error:
+				e instanceof Error
+					? e.message
+					: translate(locale, 'person.validation.couldNotSaveBirthplace')
+		};
 	}
 
 	const { data: created, error: dbError } = await supabase
@@ -100,7 +112,10 @@ async function createPerson(
 		.insert({ tree_id: treeId, ...values })
 		.select('id')
 		.single();
-	if (dbError || !created) return { error: dbError?.message ?? 'Could not create the person.' };
+	if (dbError || !created)
+		return {
+			error: dbError?.message ?? translate(locale, 'person.validation.couldNotCreatePerson')
+		};
 
 	if (birth.type === 'birth' && (birth.event_date || birth.place_id)) {
 		await supabase.from('events').insert({ tree_id: treeId, person_id: created.id, ...birth });
@@ -116,9 +131,10 @@ async function linkParentChild(
 	supabase: DB,
 	treeId: string,
 	parentId: string,
-	childId: string
+	childId: string,
+	locale: Parameters<typeof translate>[0]
 ): Promise<string | null> {
-	if (parentId === childId) return 'A person can’t be their own parent or child.';
+	if (parentId === childId) return translate(locale, 'person.validation.selfParent');
 
 	const { data: existing } = await supabase
 		.from('parent_child_links')
@@ -126,7 +142,7 @@ async function linkParentChild(
 		.eq('tree_id', treeId);
 	const edges = (existing ?? []).map((l) => ({ parentId: l.parent_id, childId: l.child_id }));
 	if (wouldCreateCycle(edges, parentId, childId)) {
-		return 'That would create a loop in the tree — they’re already an ancestor or descendant.';
+		return translate(locale, 'person.validation.wouldCreateLoop');
 	}
 
 	const { error: dbError } = await supabase
@@ -158,7 +174,7 @@ async function ensurePartnership(
 	}
 }
 
-export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
+export const load: PageServerLoad = async ({ params, locals: { supabase, user, locale } }) => {
 	if (!user) redirect(303, '/auth/login');
 
 	const { treeId, personId } = params;
@@ -215,8 +231,8 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 			.eq('person_id', personId),
 		supabase.from('places').select('*').eq('tree_id', treeId).order('name')
 	]);
-	if (!tree) error(404, 'Tree not found');
-	if (!person) error(404, 'Person not found');
+	if (!tree) error(404, translate(locale, 'tree.notFound'));
+	if (!person) error(404, translate(locale, 'person.notFound'));
 
 	const canEdit = membership?.role === 'owner' || membership?.role === 'editor';
 	const all = everyone ?? [];
@@ -446,7 +462,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 };
 
 export const actions: Actions = {
-	savePerson: async ({ params, request, locals: { supabase, user } }) => {
+	savePerson: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -460,7 +476,7 @@ export const actions: Actions = {
 			notes: field(formData, 'notes')
 		};
 		if (!values.given_names && !values.surname && !values.nickname) {
-			return fail(400, { personError: 'Enter at least a given name, surname, or nickname.' });
+			return fail(400, { personError: translate(locale, 'person.validation.enterName') });
 		}
 
 		const { error: dbError } = await supabase
@@ -472,19 +488,19 @@ export const actions: Actions = {
 		return { personSaved: true };
 	},
 
-	uploadPhoto: async ({ params, request, locals: { supabase, user } }) => {
+	uploadPhoto: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
 		const formData = await request.formData();
 		const file = formData.get('photo');
 		if (!(file instanceof File) || file.size === 0) {
-			return fail(400, { photoError: 'Choose an image to upload.' });
+			return fail(400, { photoError: translate(locale, 'person.validation.chooseImage') });
 		}
 		if (!file.type.startsWith('image/'))
-			return fail(400, { photoError: 'That file is not an image.' });
+			return fail(400, { photoError: translate(locale, 'person.validation.notAnImage') });
 		if (file.size > MAX_PHOTO_BYTES)
-			return fail(400, { photoError: 'Image must be 5 MB or smaller.' });
+			return fail(400, { photoError: translate(locale, 'person.validation.imageTooLarge') });
 
 		// Unique object per photo (tree id stays the first path segment so the
 		// existing storage RLS policies still apply).
@@ -585,7 +601,7 @@ export const actions: Actions = {
 	// freshly created one (mode=create). Returns the id + whether it was created.
 	// (Inline so each action shares the create/validate flow — 3.5b.)
 
-	addPartner: async ({ params, request, locals: { supabase, user } }) => {
+	addPartner: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -595,14 +611,16 @@ export const actions: Actions = {
 		let partnerId: string;
 		let createdId: string | null = null;
 		if (String(formData.get('mode')) === 'create') {
-			const res = await createPerson(supabase, params.treeId, formData);
+			const res = await createPerson(supabase, params.treeId, formData, locale);
 			if ('error' in res) return fail(400, { relError: res.error });
 			partnerId = res.id;
 			createdId = res.id;
 		} else {
 			partnerId = String(formData.get('personId') ?? '');
 			if (!partnerId || partnerId === params.personId) {
-				return fail(400, { relError: 'Choose a different person to link as a partner.' });
+				return fail(400, {
+					relError: translate(locale, 'person.validation.chooseDifferentPartner')
+				});
 			}
 		}
 
@@ -612,13 +630,16 @@ export const actions: Actions = {
 			.insert({ tree_id: params.treeId, partner_a, partner_b, status });
 		if (dbError) {
 			return fail(400, {
-				relError: dbError.code === '23505' ? 'They are already partners.' : dbError.message
+				relError:
+					dbError.code === '23505'
+						? translate(locale, 'person.validation.alreadyPartners')
+						: dbError.message
 			});
 		}
 		return { ok: true, createdId };
 	},
 
-	addParent: async ({ params, request, locals: { supabase, user } }) => {
+	addParent: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -626,18 +647,26 @@ export const actions: Actions = {
 		let parentId: string;
 		let createdId: string | null = null;
 		if (String(formData.get('mode')) === 'create') {
-			const res = await createPerson(supabase, params.treeId, formData);
+			const res = await createPerson(supabase, params.treeId, formData, locale);
 			if ('error' in res) return fail(400, { relError: res.error });
 			parentId = res.id;
 			createdId = res.id;
 		} else {
 			parentId = String(formData.get('personId') ?? '');
 			if (!parentId || parentId === params.personId) {
-				return fail(400, { relError: 'Choose a different person to link as a parent.' });
+				return fail(400, {
+					relError: translate(locale, 'person.validation.chooseDifferentParent')
+				});
 			}
 		}
 
-		const linkErr = await linkParentChild(supabase, params.treeId, parentId, params.personId);
+		const linkErr = await linkParentChild(
+			supabase,
+			params.treeId,
+			parentId,
+			params.personId,
+			locale
+		);
 		if (linkErr) return fail(400, { relError: linkErr });
 
 		// If this person now has exactly two parents who aren't yet partners, offer to
@@ -673,7 +702,7 @@ export const actions: Actions = {
 		return { ok: true, createdId, promptPartners };
 	},
 
-	addChild: async ({ params, request, locals: { supabase, user } }) => {
+	addChild: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -681,18 +710,24 @@ export const actions: Actions = {
 		let childId: string;
 		let createdId: string | null = null;
 		if (String(formData.get('mode')) === 'create') {
-			const res = await createPerson(supabase, params.treeId, formData);
+			const res = await createPerson(supabase, params.treeId, formData, locale);
 			if ('error' in res) return fail(400, { relError: res.error });
 			childId = res.id;
 			createdId = res.id;
 		} else {
 			childId = String(formData.get('personId') ?? '');
 			if (!childId || childId === params.personId) {
-				return fail(400, { relError: 'Choose a different person to link as a child.' });
+				return fail(400, { relError: translate(locale, 'person.validation.chooseDifferentChild') });
 			}
 		}
 
-		const linkErr = await linkParentChild(supabase, params.treeId, params.personId, childId);
+		const linkErr = await linkParentChild(
+			supabase,
+			params.treeId,
+			params.personId,
+			childId,
+			locale
+		);
 		if (linkErr) return fail(400, { relError: linkErr });
 
 		// Co-parent (the second parent): a new person (co_* fields), an existing one
@@ -717,14 +752,14 @@ export const actions: Actions = {
 			if (sel) coId = sel;
 		}
 		if (coId && coId !== params.personId && coId !== childId) {
-			const coErr = await linkParentChild(supabase, params.treeId, coId, childId);
+			const coErr = await linkParentChild(supabase, params.treeId, coId, childId, locale);
 			if (coErr) return fail(400, { relError: coErr });
 			await ensurePartnership(supabase, params.treeId, params.personId, coId);
 		}
 		return { ok: true, createdId };
 	},
 
-	addSibling: async ({ params, request, locals: { supabase, user } }) => {
+	addSibling: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -737,7 +772,7 @@ export const actions: Actions = {
 		const parentIds = [...new Set((pls ?? []).map((l) => l.parent_id))];
 		if (parentIds.length === 0) {
 			return fail(400, {
-				relError: 'Add a parent first — siblings are linked through shared parents.'
+				relError: translate(locale, 'person.validation.addParentFirst')
 			});
 		}
 
@@ -745,27 +780,29 @@ export const actions: Actions = {
 		let siblingId: string;
 		let createdId: string | null = null;
 		if (String(formData.get('mode')) === 'create') {
-			const res = await createPerson(supabase, params.treeId, formData);
+			const res = await createPerson(supabase, params.treeId, formData, locale);
 			if ('error' in res) return fail(400, { relError: res.error });
 			siblingId = res.id;
 			createdId = res.id;
 		} else {
 			siblingId = String(formData.get('personId') ?? '');
 			if (!siblingId || siblingId === params.personId) {
-				return fail(400, { relError: 'Choose a different person to link as a sibling.' });
+				return fail(400, {
+					relError: translate(locale, 'person.validation.chooseDifferentSibling')
+				});
 			}
 		}
 
 		// Link the sibling to every parent this person has.
 		for (const parentId of parentIds) {
-			const sibErr = await linkParentChild(supabase, params.treeId, parentId, siblingId);
+			const sibErr = await linkParentChild(supabase, params.treeId, parentId, siblingId, locale);
 			if (sibErr) return fail(400, { relError: sibErr });
 		}
 		return { ok: true, createdId };
 	},
 
 	// Used by the "Are X and Y partners?" prompt after a second parent is added.
-	linkPartners: async ({ params, request, locals: { supabase, user } }) => {
+	linkPartners: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -773,7 +810,7 @@ export const actions: Actions = {
 		const aId = String(formData.get('aId') ?? '');
 		const bId = String(formData.get('bId') ?? '');
 		if (!aId || !bId || aId === bId)
-			return fail(400, { relError: 'Could not link those partners.' });
+			return fail(400, { relError: translate(locale, 'person.validation.couldNotLinkPartners') });
 		await ensurePartnership(supabase, params.treeId, aId, bId);
 		return { ok: true };
 	},
@@ -824,7 +861,7 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 
-	addEvent: async ({ params, request, locals: { supabase, user } }) => {
+	addEvent: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
@@ -834,31 +871,34 @@ export const actions: Actions = {
 			columns = await parseEventForm(supabase, params.treeId, formData);
 		} catch (e) {
 			return fail(400, {
-				eventError: e instanceof Error ? e.message : 'Could not save the event.'
+				eventError:
+					e instanceof Error ? e.message : translate(locale, 'person.validation.couldNotSaveEvent')
 			});
 		}
 
 		const { error: dbError } = await supabase
 			.from('events')
 			.insert({ tree_id: params.treeId, person_id: params.personId, ...columns });
-		if (dbError) return fail(400, { eventError: duplicateMessage(dbError) });
+		if (dbError) return fail(400, { eventError: duplicateMessage(dbError, locale) });
 		return { ok: true };
 	},
 
-	updateEvent: async ({ params, request, locals: { supabase, user } }) => {
+	updateEvent: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		await requireEditableTree(supabase, user.id, params.treeId);
 
 		const formData = await request.formData();
 		const eventId = String(formData.get('eventId') ?? '');
-		if (!eventId) return fail(400, { eventError: 'Missing event.' });
+		if (!eventId)
+			return fail(400, { eventError: translate(locale, 'person.validation.missingEvent') });
 
 		let columns;
 		try {
 			columns = await parseEventForm(supabase, params.treeId, formData);
 		} catch (e) {
 			return fail(400, {
-				eventError: e instanceof Error ? e.message : 'Could not save the event.'
+				eventError:
+					e instanceof Error ? e.message : translate(locale, 'person.validation.couldNotSaveEvent')
 			});
 		}
 
@@ -868,7 +908,7 @@ export const actions: Actions = {
 			.eq('id', eventId)
 			.eq('tree_id', params.treeId)
 			.eq('person_id', params.personId);
-		if (dbError) return fail(400, { eventError: duplicateMessage(dbError) });
+		if (dbError) return fail(400, { eventError: duplicateMessage(dbError, locale) });
 		return { ok: true };
 	},
 

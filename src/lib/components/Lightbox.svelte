@@ -4,6 +4,9 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { useI18n } from '$lib/i18n';
+
+	const t = useI18n().t;
 
 	let {
 		photos,
@@ -43,7 +46,7 @@
 	<button
 		type="button"
 		onclick={onclose}
-		aria-label="Close"
+		aria-label={t('common.close')}
 		class="absolute top-4 right-4 grid h-9 w-9 place-items-center rounded-full bg-white/15 text-xl text-white hover:bg-white/30"
 	>
 		✕
@@ -53,7 +56,7 @@
 		<button
 			type="button"
 			onclick={prev}
-			aria-label="Previous"
+			aria-label={t('map.lightbox.previous')}
 			class="absolute left-4 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-2xl text-white hover:bg-white/30"
 		>
 			‹
@@ -61,7 +64,7 @@
 		<button
 			type="button"
 			onclick={next}
-			aria-label="Next"
+			aria-label={t('map.lightbox.next')}
 			class="absolute right-4 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-2xl text-white hover:bg-white/30"
 		>
 			›

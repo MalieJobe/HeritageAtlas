@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
+import { translate } from '$lib/i18n';
 
 function safeRedirect(target: string | null): string {
 	if (target && target.startsWith('/') && !target.startsWith('//')) {
@@ -9,16 +10,16 @@ function safeRedirect(target: string | null): string {
 }
 
 export const actions: Actions = {
-	default: async ({ request, url, locals: { supabase } }) => {
+	default: async ({ request, url, locals: { supabase, locale } }) => {
 		const formData = await request.formData();
 		const email = String(formData.get('email') ?? '');
 		const password = String(formData.get('password') ?? '');
 
 		if (!email || !password) {
-			return fail(400, { email, error: 'Email and password are required.' });
+			return fail(400, { email, error: translate(locale, 'auth.emailPasswordRequired') });
 		}
 		if (password.length < 8) {
-			return fail(400, { email, error: 'Password must be at least 8 characters.' });
+			return fail(400, { email, error: translate(locale, 'auth.signup.passwordTooShort') });
 		}
 
 		const { data, error } = await supabase.auth.signUp({ email, password });

@@ -1,0 +1,10 @@
+{
+	"share.title": "{name} · Shared tree · HeritageAtlas",
+	"share.passwordProtected": "This shared family tree is password-protected.",
+	"share.passwordPlaceholder": "Password",
+	"share.viewTree": "View tree",
+	"share.readOnlyNotice": "Shared, read-only view · photos hidden for privacy",
+	"share.enterPassword": "Enter the password.",
+	"share.incorrectPassword": "That password is incorrect.",
+	"share.invalidLink": "This shared tree link is not valid."
+}

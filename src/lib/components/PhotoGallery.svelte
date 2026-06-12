@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { useI18n } from '$lib/i18n';
 	import Lightbox from '$lib/components/Lightbox.svelte';
+
+	const t = useI18n().t;
 
 	type Photo = { id: string; url: string };
 
@@ -57,7 +60,7 @@
 				type="button"
 				onclick={() => (lightboxIndex = i)}
 				class="block h-full w-full cursor-zoom-in"
-				aria-label="Open photo"
+				aria-label={t('map.photo.openPhoto')}
 			>
 				<img src={photo.url} alt="" class="h-full w-full object-cover" draggable="false" />
 			</button>
@@ -66,7 +69,7 @@
 					<input type="hidden" name="photoId" value={photo.id} />
 					<button
 						type="submit"
-						aria-label="Delete photo"
+						aria-label={t('map.photo.deletePhoto')}
 						class="grid h-5 w-5 cursor-pointer place-items-center rounded-full bg-ink/70 text-xs text-paper opacity-0 transition group-hover:opacity-100 hover:bg-ink"
 					>
 						✕
@@ -76,7 +79,7 @@
 			{#if i === 0}
 				<span
 					class="absolute bottom-0 left-0 w-full bg-ink/55 py-0.5 text-center text-[10px] text-paper"
-					>Profile</span
+					>{t('map.photo.profile')}</span
 				>
 			{/if}
 		</div>
@@ -87,7 +90,7 @@
 		<button
 			type="button"
 			onclick={() => fileInput?.click()}
-			aria-label="Add photo"
+			aria-label={t('map.photo.addPhoto')}
 			class="grid h-24 w-24 place-items-center rounded-md border border-dashed border-sage text-3xl text-ink/40 hover:border-clay hover:text-clay"
 		>
 			+
@@ -115,7 +118,7 @@
 </div>
 
 {#if items.length === 0}
-	<p class="mt-1 text-sm text-ink/45">No photos yet.</p>
+	<p class="mt-1 text-sm text-ink/45">{t('map.photo.noPhotos')}</p>
 {/if}
 
 {#if lightboxIndex !== null}

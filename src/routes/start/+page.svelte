@@ -6,10 +6,19 @@
 	import PlacePicker from '$lib/components/PlacePicker.svelte';
 	import type { PlaceSelection } from '$lib/place';
 	import type { ActionData } from './$types';
+	import { useI18n } from '$lib/i18n';
+
+	const t = useI18n().t;
 
 	let { form }: { form: ActionData } = $props();
 
-	const STEPS = ['Your family', 'You', 'Parents', 'Partner', 'Children'];
+	const STEPS = $derived([
+		t('onboarding.stepYourFamily'),
+		t('onboarding.stepYou'),
+		t('onboarding.stepParents'),
+		t('onboarding.stepPartner'),
+		t('onboarding.stepChildren')
+	]);
 	let step = $state(0);
 
 	let treeId = $state('');
@@ -21,11 +30,11 @@
 	let birthPlace = $state<PlaceSelection | null>(null);
 	let homePlace = $state<PlaceSelection | null>(null);
 
-	const sexes = [
-		['female', 'Female'],
-		['male', 'Male'],
-		['other', 'Other']
-	] as const;
+	const sexes = $derived([
+		['female', t('common.sexFemale')],
+		['male', t('common.sexMale')],
+		['other', t('common.sexOther')]
+	] as const);
 
 	function advancer(apply?: (data: Record<string, unknown>) => void): SubmitFunction {
 		return () =>
@@ -53,7 +62,7 @@
 	}
 </script>
 
-<svelte:head><title>Start your family tree · HeritageAtlas</title></svelte:head>
+<svelte:head><title>{t('onboarding.title')}</title></svelte:head>
 
 <div class="mx-auto flex w-full max-w-md flex-col gap-6">
 	<ol class="flex flex-wrap items-center gap-1.5 text-[11px] text-ink/40">
@@ -74,8 +83,8 @@
 	{#if step === 0}
 		<div class="flex flex-col gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-ink">Start your family tree</h1>
-				<p class="mt-1 text-sm text-ink/60">Give it a name — you can change it later.</p>
+				<h1 class="text-2xl font-semibold text-ink">{t('onboarding.treeHeading')}</h1>
+				<p class="mt-1 text-sm text-ink/60">{t('onboarding.treeSubtitle')}</p>
 			</div>
 			<form
 				method="POST"
@@ -83,17 +92,19 @@
 				use:enhance={advancer((d) => (treeId = String(d.treeId)))}
 			>
 				<label class={label}>
-					Family tree name
-					<input name="name" value="My Family" class={inputClass} />
+					{t('onboarding.treeNameLabel')}
+					<input name="name" value={t('onboarding.treeNameDefault')} class={inputClass} />
 				</label>
-				<div class={actions}><button type="submit" class={primary}>Continue</button></div>
+				<div class={actions}>
+					<button type="submit" class={primary}>{t('common.continue')}</button>
+				</div>
 			</form>
 		</div>
 	{:else if step === 1}
 		<div class="flex flex-col gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-ink">Add yourself</h1>
-				<p class="mt-1 text-sm text-ink/60">You're the center of the tree.</p>
+				<h1 class="text-2xl font-semibold text-ink">{t('onboarding.selfHeading')}</h1>
+				<p class="mt-1 text-sm text-ink/60">{t('onboarding.selfSubtitle')}</p>
 			</div>
 			<form
 				method="POST"
@@ -119,11 +130,11 @@
 				<div class="flex flex-col gap-3">
 					<div class="flex gap-2">
 						<label class="{label} flex-1">
-							Given names
+							{t('common.givenNames')}
 							<input name="given" class={inputClass} />
 						</label>
 						<label class="{label} flex-1">
-							Surname
+							{t('common.surname')}
 							<input name="surname" class={inputClass} />
 						</label>
 					</div>
@@ -136,19 +147,19 @@
 						{/each}
 					</fieldset>
 					<label class={label}>
-						Date of birth
+						{t('onboarding.dateOfBirth')}
 						<input name="birthDate" type="date" class={inputClass} />
 					</label>
 					<div class="flex flex-col gap-1">
-						<span class={fieldHint}>Place of birth</span>
+						<span class={fieldHint}>{t('onboarding.placeOfBirth')}</span>
 						<PlacePicker selection={birthPlace} onchange={(s) => (birthPlace = s)} />
 					</div>
 					<div class="flex flex-col gap-1">
-						<span class={fieldHint}>Where you live now</span>
+						<span class={fieldHint}>{t('onboarding.whereYouLiveNow')}</span>
 						<PlacePicker selection={homePlace} onchange={(s) => (homePlace = s)} />
 					</div>
 					<label class={label}>
-						Photo
+						{t('onboarding.photo')}
 						<input
 							name="photo"
 							type="file"
@@ -157,33 +168,35 @@
 						/>
 					</label>
 				</div>
-				<div class={actions}><button type="submit" class={primary}>Continue</button></div>
+				<div class={actions}>
+					<button type="submit" class={primary}>{t('common.continue')}</button>
+				</div>
 			</form>
 		</div>
 	{:else if step === 2}
 		<div class="flex flex-col gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-ink">Your parents</h1>
-				<p class="mt-1 text-sm text-ink/60">Add either, both, or skip.</p>
+				<h1 class="text-2xl font-semibold text-ink">{t('onboarding.parentsHeading')}</h1>
+				<p class="mt-1 text-sm text-ink/60">{t('onboarding.parentsSubtitle')}</p>
 			</div>
 			<form method="POST" action="?/addParents" use:enhance={advancer()}>
 				<input type="hidden" name="treeId" value={treeId} />
 				<input type="hidden" name="selfId" value={selfId} />
 				<div class="flex flex-col gap-4">
-					{#each [['father', 'Father'], ['mother', 'Mother']] as [key, title] (key)}
+					{#each [['father', t('onboarding.father')], ['mother', t('onboarding.mother')]] as [key, title] (key)}
 						<fieldset class="flex flex-col gap-2">
 							<legend class={fieldHint}>{title}</legend>
 							<div class="flex gap-2">
-								<input name="{key}Given" placeholder="Given names" class={inputClass} />
-								<input name="{key}Surname" placeholder="Surname" class={inputClass} />
+								<input name="{key}Given" placeholder={t('common.givenNames')} class={inputClass} />
+								<input name="{key}Surname" placeholder={t('common.surname')} class={inputClass} />
 							</div>
 							<div class="flex gap-2">
 								<label class="{label} flex-1 text-xs">
-									Born
+									{t('common.born')}
 									<input name="{key}Dob" type="date" class={inputClass} />
 								</label>
 								<label class="{label} flex-1 text-xs">
-									Died
+									{t('common.died')}
 									<input name="{key}Dod" type="date" class={inputClass} />
 								</label>
 							</div>
@@ -191,16 +204,18 @@
 					{/each}
 				</div>
 				<div class={actions}>
-					<button type="submit" class={primary}>Continue</button>
-					<button type="button" onclick={() => (step += 1)} class={secondary}>Skip</button>
+					<button type="submit" class={primary}>{t('common.continue')}</button>
+					<button type="button" onclick={() => (step += 1)} class={secondary}
+						>{t('common.skip')}</button
+					>
 				</div>
 			</form>
 		</div>
 	{:else if step === 3}
 		<div class="flex flex-col gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-ink">Your partner</h1>
-				<p class="mt-1 text-sm text-ink/60">Optional — add a spouse or partner.</p>
+				<h1 class="text-2xl font-semibold text-ink">{t('onboarding.partnerHeading')}</h1>
+				<p class="mt-1 text-sm text-ink/60">{t('onboarding.partnerSubtitle')}</p>
 			</div>
 			<form
 				method="POST"
@@ -211,8 +226,8 @@
 				<input type="hidden" name="selfId" value={selfId} />
 				<div class="flex flex-col gap-3">
 					<div class="flex gap-2">
-						<input name="given" placeholder="Given names" class={inputClass} />
-						<input name="surname" placeholder="Surname" class={inputClass} />
+						<input name="given" placeholder={t('common.givenNames')} class={inputClass} />
+						<input name="surname" placeholder={t('common.surname')} class={inputClass} />
 					</div>
 					<fieldset class="flex gap-3">
 						{#each sexes as [value, text] (value)}
@@ -224,16 +239,18 @@
 					</fieldset>
 				</div>
 				<div class={actions}>
-					<button type="submit" class={primary}>Continue</button>
-					<button type="button" onclick={() => (step += 1)} class={secondary}>Skip</button>
+					<button type="submit" class={primary}>{t('common.continue')}</button>
+					<button type="button" onclick={() => (step += 1)} class={secondary}
+						>{t('common.skip')}</button
+					>
 				</div>
 			</form>
 		</div>
 	{:else if step === 4}
 		<div class="flex flex-col gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-ink">Your children</h1>
-				<p class="mt-1 text-sm text-ink/60">Add their names and birthdays — or skip.</p>
+				<h1 class="text-2xl font-semibold text-ink">{t('onboarding.childrenHeading')}</h1>
+				<p class="mt-1 text-sm text-ink/60">{t('onboarding.childrenSubtitle')}</p>
 			</div>
 			<form method="POST" action="?/addChildren" use:enhance={advancer()}>
 				<input type="hidden" name="treeId" value={treeId} />
@@ -246,7 +263,7 @@
 							<input
 								bind:value={child.given}
 								name="childGiven"
-								placeholder="Given name"
+								placeholder={t('common.givenNames')}
 								class="{inputClass} flex-1"
 							/>
 							<input
@@ -263,24 +280,21 @@
 					onclick={() => (children = [...children, { given: '', dob: '' }])}
 					class="mt-2 text-sm font-medium text-clay hover:underline"
 				>
-					+ Add another
+					{t('onboarding.addAnother')}
 				</button>
 				<div class={actions}>
-					<button type="submit" class={primary}>Finish</button>
-					<button type="button" onclick={finish} class={secondary}>Skip</button>
+					<button type="submit" class={primary}>{t('onboarding.finish')}</button>
+					<button type="button" onclick={finish} class={secondary}>{t('common.skip')}</button>
 				</div>
 			</form>
 		</div>
 	{:else}
 		<div class="flex flex-col items-start gap-4">
 			<div>
-				<h1 class="text-2xl font-semibold text-ink">You're all set 🎉</h1>
-				<p class="mt-1 text-sm text-ink/60">
-					Your family tree is ready. Add more places and dates to watch everyone move across the map
-					over time.
-				</p>
+				<h1 class="text-2xl font-semibold text-ink">{t('onboarding.doneHeading')}</h1>
+				<p class="mt-1 text-sm text-ink/60">{t('onboarding.doneBody')}</p>
 			</div>
-			<button type="button" onclick={finish} class={primary}>Open my tree →</button>
+			<button type="button" onclick={finish} class={primary}>{t('onboarding.openMyTree')}</button>
 		</div>
 	{/if}
 </div>

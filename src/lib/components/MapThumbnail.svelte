@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { useI18n } from '$lib/i18n';
 	import { osmRasterStyle } from '$lib/map/style';
+
+	const t = useI18n().t;
 
 	// A small, non-interactive map preview of a tree's places. Lazily initialised
 	// when scrolled into view so a dashboard of cards stays snappy.
@@ -64,6 +67,6 @@
 	<div bind:this={el} class="h-full w-full bg-sage/20"></div>
 {:else}
 	<div class="grid h-full w-full place-items-center bg-sage/15 text-[10px] text-ink/40">
-		No places yet
+		{t('map.thumbnail.noPlaces')}
 	</div>
 {/if}

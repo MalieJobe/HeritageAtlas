@@ -1,17 +1,22 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { useI18n } from '$lib/i18n';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	const t = useI18n().t;
 </script>
 
-<svelte:head><title>Invitations · HeritageAtlas</title></svelte:head>
+<svelte:head><title>{t('invitations.title')}</title></svelte:head>
 
 <div class="flex flex-col gap-6">
 	<div class="flex flex-col gap-1">
-		<a href={resolve('/trees')} class="text-sm text-ink/60 hover:text-ink">← Your trees</a>
-		<h1 class="text-2xl font-semibold text-ink">Invitations</h1>
+		<a href={resolve('/trees')} class="text-sm text-ink/60 hover:text-ink"
+			>{t('invitations.backLink')}</a
+		>
+		<h1 class="text-2xl font-semibold text-ink">{t('invitations.heading')}</h1>
 	</div>
 
 	{#if form?.error}
@@ -26,7 +31,14 @@
 				>
 					<div class="flex flex-col">
 						<span class="font-medium text-ink">{invite.tree_name}</span>
-						<span class="text-xs tracking-wide text-ink/45 uppercase">as {invite.role}</span>
+						<span class="text-xs tracking-wide text-ink/45 uppercase"
+							>{t('invitations.asRole', {
+								role:
+									invite.role === 'editor'
+										? t('invitations.roleEditor')
+										: t('invitations.roleViewer')
+							})}</span
+						>
 					</div>
 					<div class="flex items-center gap-2">
 						<form method="POST" action="?/accept" use:enhance>
@@ -35,7 +47,7 @@
 								type="submit"
 								class="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80"
 							>
-								Accept
+								{t('invitations.accept')}
 							</button>
 						</form>
 						<form method="POST" action="?/decline" use:enhance>
@@ -44,7 +56,7 @@
 								type="submit"
 								class="rounded-md border border-sage px-3 py-1.5 text-sm font-medium text-ink/80 hover:bg-cream"
 							>
-								Decline
+								{t('invitations.decline')}
 							</button>
 						</form>
 					</div>
@@ -53,7 +65,7 @@
 		</ul>
 	{:else}
 		<p class="rounded-lg border border-dashed border-sage px-4 py-8 text-center text-ink/55">
-			You have no pending invitations.
+			{t('invitations.empty')}
 		</p>
 	{/if}
 </div>

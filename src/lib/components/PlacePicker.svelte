@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { useI18n } from '$lib/i18n';
 	import PinDropMap from '$lib/components/PinDropMap.svelte';
+
+	const t = useI18n().t;
 	import { formatCoords, normalizePlaceName, type Place, type PlaceSelection } from '$lib/place';
 	import { GEOCODE_ATTRIBUTION, type GeocodeResult } from '$lib/geocode';
 
@@ -146,7 +149,7 @@
 		<div class="min-w-0">
 			<p class="truncate text-sm font-medium text-ink">{selection.name}</p>
 			<p class="text-xs text-ink/55">
-				{selection.kind === 'existing' ? 'In this tree' : 'New place'} ·
+				{selection.kind === 'existing' ? t('map.place.inThisTree') : t('map.place.newPlace')} ·
 				{formatCoords(selection.lat, selection.lng)}
 			</p>
 		</div>
@@ -155,7 +158,7 @@
 			onclick={() => onchange(null)}
 			class="shrink-0 rounded-md border border-sage px-2 py-1 text-xs text-ink/70 hover:bg-paper"
 		>
-			Change
+			{t('map.place.change')}
 		</button>
 	</div>
 {:else}
@@ -176,7 +179,7 @@
 				bind:value={query}
 				oninput={onInput}
 				onfocus={() => (open = true)}
-				placeholder="Search places…"
+				placeholder={t('map.place.searchPlaceholder')}
 				class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
 			/>
 
@@ -188,7 +191,7 @@
 					<!-- Existing places: capped to ~2 rows, scroll for the rest. -->
 					{#if matches.length > 0}
 						<p class="border-b border-sage/60 bg-cream/40 px-3 py-1 text-[10px] text-ink/45">
-							In this tree
+							{t('map.place.inThisTree')}
 						</p>
 						<ul class="max-h-24 overflow-y-auto">
 							{#each matches as place (place.id)}
@@ -211,14 +214,14 @@
 					<!-- New places from geocoding, shown once the query is long enough. -->
 					{#if searching}
 						<p class="border-y border-sage/60 bg-cream/40 px-3 py-1 text-[10px] text-ink/45">
-							New place
+							{t('map.place.newPlace')}
 						</p>
 						{#if loading}
-							<p class="px-3 py-2 text-sm text-ink/50">Searching…</p>
+							<p class="px-3 py-2 text-sm text-ink/50">{t('map.place.searching')}</p>
 						{:else if failed}
-							<p class="px-3 py-2 text-sm text-red-600">Couldn’t reach the geocoding service.</p>
+							<p class="px-3 py-2 text-sm text-red-600">{t('map.place.geocodeError')}</p>
 						{:else if geoResults.length === 0}
-							<p class="px-3 py-2 text-sm text-ink/50">No matches.</p>
+							<p class="px-3 py-2 text-sm text-ink/50">{t('map.place.noMatches')}</p>
 						{:else}
 							<ul class="max-h-48 overflow-y-auto">
 								{#each geoResults as result (result.osmRef ?? result.displayName)}
@@ -239,7 +242,7 @@
 							</p>
 						{/if}
 					{:else if matches.length === 0}
-						<p class="px-3 py-2 text-sm text-ink/50">Type to search for a place.</p>
+						<p class="px-3 py-2 text-sm text-ink/50">{t('map.place.typeToSearch')}</p>
 					{/if}
 				</div>
 			{/if}
@@ -250,14 +253,14 @@
 				<input
 					type="text"
 					bind:value={pinName}
-					placeholder="Place name (required)"
+					placeholder={t('map.place.nameRequired')}
 					autocomplete="off"
 					class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
 				/>
 				<input
 					type="text"
 					bind:value={pinHistorical}
-					placeholder="Historical name (optional)"
+					placeholder={t('map.place.historicalOptional')}
 					autocomplete="off"
 					class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
 				/>
@@ -270,7 +273,9 @@
 					}}
 				/>
 				{#if pinLat != null && pinLng != null}
-					<p class="text-xs text-ink/55">Pinned at {formatCoords(pinLat, pinLng)}</p>
+					<p class="text-xs text-ink/55">
+						{t('map.place.pinnedAt', { coords: formatCoords(pinLat, pinLng) })}
+					</p>
 				{/if}
 				<div class="flex gap-2">
 					<button
@@ -279,14 +284,14 @@
 						disabled={!canUsePin}
 						class="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						Use this location
+						{t('map.place.useLocation')}
 					</button>
 					<button
 						type="button"
 						onclick={resetPin}
 						class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink/70 hover:bg-paper"
 					>
-						Cancel
+						{t('common.cancel')}
 					</button>
 				</div>
 			</div>
@@ -296,7 +301,7 @@
 				onclick={() => (pinMode = true)}
 				class="text-xs font-medium text-ink/60 underline underline-offset-2 hover:text-ink"
 			>
-				Can’t find it? Drop a pin on the map
+				{t('map.place.dropPin')}
 			</button>
 		{/if}
 	</div>

@@ -6,6 +6,9 @@
 	import { resolvePositions } from '$lib/map/positionResolver';
 	import { layoutMarkers, type ClusterInstruction } from '$lib/map/markerLayout';
 	import type { MapPerson } from '$lib/map/types';
+	import { useI18n } from '$lib/i18n';
+
+	const t = useI18n().t;
 
 	let {
 		persons,
@@ -124,8 +127,8 @@
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'ha-cluster';
-		button.title = `${cluster.count} people here — click to zoom in`;
-		button.setAttribute('aria-label', `${cluster.count} people here`);
+		button.title = t('map.view.clusterTitle', { count: cluster.count });
+		button.setAttribute('aria-label', t('map.view.clusterLabel', { count: cluster.count }));
 
 		const span = document.createElement('span');
 		span.className = 'ha-cluster-count';
@@ -430,8 +433,8 @@
 		<button
 			type="button"
 			class="grid h-8 w-8 place-items-center hover:bg-cream"
-			title="Fit everyone"
-			aria-label="Fit everyone in view"
+			title={t('map.view.fitEveryone')}
+			aria-label={t('map.view.fitEveryoneLabel')}
 			onclick={fitEveryone}
 		>
 			<svg
@@ -453,8 +456,8 @@
 			class="grid h-8 w-8 place-items-center border-t border-sage hover:bg-cream {followAlive
 				? 'bg-clay text-ink'
 				: ''}"
-			title="Follow the living — keep everyone alive at this year in view"
-			aria-label="Follow the living"
+			title={t('map.view.followLivingTitle')}
+			aria-label={t('map.view.followLivingLabel')}
 			aria-pressed={followAlive}
 			onclick={toggleFollowAlive}
 		>

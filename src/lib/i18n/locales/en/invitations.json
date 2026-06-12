@@ -1,0 +1,12 @@
+{
+	"invitations.title": "Invitations · HeritageAtlas",
+	"invitations.backLink": "← Your trees",
+	"invitations.heading": "Invitations",
+	"invitations.asRole": "as {role}",
+	"invitations.roleViewer": "Viewer",
+	"invitations.roleEditor": "Editor",
+	"invitations.accept": "Accept",
+	"invitations.decline": "Decline",
+	"invitations.empty": "You have no pending invitations.",
+	"invitations.noLongerAvailable": "That invitation is no longer available."
+}

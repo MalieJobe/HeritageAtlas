@@ -1,0 +1,22 @@
+{
+	"dashboard.title": "Dashboard · HeritageAtlas",
+	"dashboard.welcome": "Welcome back, {name}",
+	"dashboard.subtitle": "Your family trees.",
+	"dashboard.pending": "You have {count, plural, one {# pending invitation} other {# pending invitations}}.",
+	"dashboard.reviewLink": "Review →",
+	"dashboard.onThisDay": "On this day",
+	"dashboard.birthAnniversary": "✳ {name} would turn {years, plural, one {# year} other {# years}} (b. {year})",
+	"dashboard.deathAnniversary": "† {name} — {years, plural, one {# year ago} other {# years ago}} (d. {year})",
+	"dashboard.treeDot": "· {treeName}",
+	"dashboard.statPeople": "{count, plural, one {# person} other {# people}}",
+	"dashboard.statGenerations": "· {count, plural, one {# generation} other {# generations}}",
+	"dashboard.statPlaces": "· {count, plural, one {# place} other {# places}}",
+	"dashboard.openTree": "Open →",
+	"dashboard.quickActions": "Quick actions",
+	"dashboard.treeNamePlaceholder": "Family tree name",
+	"dashboard.newTree": "New tree",
+	"dashboard.importGedcom": "Import GEDCOM",
+	"dashboard.noTrees": "No trees yet — create your first one above to start mapping your family.",
+	"dashboard.treeNameRequired": "Please enter a tree name.",
+	"dashboard.treeNameTooLong": "Name must be 200 characters or fewer."
+}

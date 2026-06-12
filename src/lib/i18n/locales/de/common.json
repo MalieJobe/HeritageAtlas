@@ -28,5 +28,8 @@
 	"common.dashboard": "Übersicht",
 	"common.account": "Konto",
 	"common.born": "Geboren",
-	"common.died": "Gestorben"
+	"common.died": "Gestorben",
+	"common.notifications": "Benachrichtigungen",
+	"common.dismiss": "Schließen",
+	"common.notAuthenticated": "Nicht authentifiziert"
 }

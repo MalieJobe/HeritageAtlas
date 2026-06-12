@@ -7,7 +7,10 @@
 	import EventRowFields from '$lib/components/EventRowFields.svelte';
 	import MiniFamily from '$lib/components/MiniFamily.svelte';
 	import RelationAdder from '$lib/components/RelationAdder.svelte';
+	import { useI18n } from '$lib/i18n';
 	import type { ActionData, PageData } from './$types';
+
+	const t = useI18n().t;
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -127,7 +130,7 @@
 	};
 </script>
 
-<svelte:head><title>{name} · HeritageAtlas</title></svelte:head>
+<svelte:head><title>{t('person.title', { name })}</title></svelte:head>
 
 {#snippet relRow(rel: { id: string; name: string })}
 	<a
@@ -151,19 +154,19 @@
 		>
 			<input type="hidden" name={idName} value={idValue} />
 			<button type="submit" class="text-xs font-medium text-red-600 hover:text-red-700"
-				>Remove</button
+				>{t('common.remove')}</button
 			>
 			<button
 				type="button"
 				onclick={() => (confirmingRemove = null)}
-				class="text-xs text-ink/40 hover:text-ink">Cancel</button
+				class="text-xs text-ink/40 hover:text-ink">{t('common.cancel')}</button
 			>
 		</form>
 	{:else}
 		<button
 			type="button"
 			onclick={() => (confirmingRemove = token)}
-			class="text-xs text-ink/40 hover:text-red-600">Remove</button
+			class="text-xs text-ink/40 hover:text-red-600">{t('common.remove')}</button
 		>
 	{/if}
 {/snippet}
@@ -173,7 +176,7 @@
 		href={resolve('/trees/[treeId]', { treeId: data.tree.id })}
 		class="text-sm text-ink/60 hover:text-ink"
 	>
-		← {data.tree.name}
+		{t('person.backToTree', { treeName: data.tree.name })}
 	</a>
 
 	<!-- Row 1: base info | mini family graph -->
@@ -196,7 +199,7 @@
 				>
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-							Given name(s)
+							{t('common.givenNames')}
 							<input
 								name="given_names"
 								type="text"
@@ -205,11 +208,11 @@
 							/>
 						</label>
 						<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-							Surname
+							{t('common.surname')}
 							<input name="surname" type="text" value={person.surname ?? ''} class={inputClass} />
 						</label>
 						<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-							Birth / maiden surname
+							{t('common.birthSurname')}
 							<input
 								name="birth_surname"
 								type="text"
@@ -218,33 +221,36 @@
 							/>
 						</label>
 						<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-							Nickname
+							{t('common.nickname')}
 							<input name="nickname" type="text" value={person.nickname ?? ''} class={inputClass} />
 						</label>
 					</div>
 					<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-						Sex
+						{t('common.sex')}
 						<select name="sex" class={inputClass}>
-							<option value="" selected={!person.sex}>Unspecified</option>
-							<option value="female" selected={person.sex === 'female'}>Female</option>
-							<option value="male" selected={person.sex === 'male'}>Male</option>
-							<option value="other" selected={person.sex === 'other'}>Other</option>
+							<option value="" selected={!person.sex}>{t('common.sexUnspecified')}</option>
+							<option value="female" selected={person.sex === 'female'}
+								>{t('common.sexFemale')}</option
+							>
+							<option value="male" selected={person.sex === 'male'}>{t('common.sexMale')}</option>
+							<option value="other" selected={person.sex === 'other'}>{t('common.sexOther')}</option
+							>
 						</select>
 					</label>
 					<label class="flex flex-col gap-1 text-sm font-medium text-ink/80">
-						Notes
+						{t('common.notes')}
 						<textarea name="notes" rows="3" class={inputClass}>{person.notes ?? ''}</textarea>
 					</label>
 					<div class="flex items-center gap-3">
 						<button
 							type="submit"
 							class="rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80"
-							>Save</button
+							>{t('common.save')}</button
 						>
 						{#if form?.personError}
 							<p class="text-sm text-red-600">{form.personError}</p>
 						{:else if form?.personSaved}
-							<p class="text-sm text-green-700">Saved.</p>
+							<p class="text-sm text-green-700">{t('person.saved')}</p>
 						{/if}
 					</div>
 				</form>
@@ -253,16 +259,16 @@
 				<div class="mt-1">
 					{#if confirmingDelete}
 						<form method="POST" action="?/deletePerson" use:enhance class="flex items-center gap-2">
-							<span class="text-sm text-ink/70">Delete {name}?</span>
+							<span class="text-sm text-ink/70">{t('person.deleteConfirm', { name })}</span>
 							<button
 								type="submit"
 								class="rounded-md bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700"
-								>Yes, delete</button
+								>{t('person.deleteYes')}</button
 							>
 							<button
 								type="button"
 								onclick={() => (confirmingDelete = false)}
-								class="text-sm text-ink/60 hover:text-ink">Cancel</button
+								class="text-sm text-ink/60 hover:text-ink">{t('common.cancel')}</button
 							>
 						</form>
 					{:else}
@@ -270,7 +276,7 @@
 							type="button"
 							onclick={() => (confirmingDelete = true)}
 							class="text-xs font-medium text-red-700/80 hover:text-red-700"
-							>Delete this person</button
+							>{t('person.deletePerson')}</button
 						>
 					{/if}
 				</div>
@@ -300,23 +306,23 @@
 						onclick={() => (relOpen = true)}
 						class="absolute top-3 right-3 rounded-md border border-sage bg-white/90 px-2.5 py-1 text-xs font-medium text-ink/80 shadow-sm backdrop-blur hover:bg-cream"
 					>
-						Manage relationships
+						{t('person.manageRelationships')}
 					</button>
 				{/if}
 			</div>
-			<p class="text-center text-xs text-ink/45">Click a relative to open their page.</p>
+			<p class="text-center text-xs text-ink/45">{t('person.clickRelative')}</p>
 		</section>
 	</div>
 
 	<!-- Row 2: events (inline table — add/edit happen as rows, no separate card) -->
 	<section class="flex flex-col gap-3 border-t border-sage pt-6">
-		<h2 class="text-sm font-medium text-ink/80">Events</h2>
+		<h2 class="text-sm font-medium text-ink/80">{t('person.events')}</h2>
 		{#if form?.eventError}
 			<p class="text-sm text-red-600">{form.eventError}</p>
 		{/if}
 
 		{#if data.events.length === 0 && !data.canEdit}
-			<p class="text-sm text-ink/55">No events recorded.</p>
+			<p class="text-sm text-ink/55">{t('person.events.noEvents')}</p>
 		{:else}
 			<div
 				class="grid grid-cols-[max-content_minmax(150px,1fr)_minmax(220px,1.6fr)_max-content] gap-x-3 text-sm"
@@ -326,9 +332,9 @@
 						{text}
 					</div>
 				{/snippet}
-				{@render header('Event')}
-				{@render header('Date')}
-				{@render header('Place')}
+				{@render header(t('person.events.colEvent'))}
+				{@render header(t('person.events.colDate'))}
+				{@render header(t('person.events.colPlace'))}
 				<div class="border-b border-sage pb-1.5"></div>
 
 				{#each data.events as event (event.id)}
@@ -344,12 +350,12 @@
 								<button
 									type="submit"
 									class="rounded-md bg-clay px-2.5 py-1 text-xs font-medium text-ink hover:bg-clay/80"
-									>Save</button
+									>{t('common.save')}</button
 								>
 								<button
 									type="button"
 									onclick={cancelEdit}
-									class="ml-2 text-xs text-ink/40 hover:text-ink">Cancel</button
+									class="ml-2 text-xs text-ink/40 hover:text-ink">{t('common.cancel')}</button
 								>
 							</div>
 						</form>
@@ -365,12 +371,12 @@
 								<button
 									type="button"
 									onclick={() => startEdit(event.id)}
-									class="text-xs text-ink/40 hover:text-ink">Edit</button
+									class="text-xs text-ink/40 hover:text-ink">{t('common.edit')}</button
 								>
 								<form method="POST" action="?/deleteEvent" use:enhance class="inline">
 									<input type="hidden" name="eventId" value={event.id} />
 									<button type="submit" class="ml-2 text-xs text-ink/40 hover:text-red-600"
-										>Remove</button
+										>{t('common.remove')}</button
 									>
 								</form>
 							{/if}
@@ -392,7 +398,7 @@
 								<button
 									type="submit"
 									class="rounded-md bg-clay px-3 py-1.5 text-xs font-medium text-ink hover:bg-clay/80"
-									>Add event</button
+									>{t('person.events.addEvent')}</button
 								>
 							</div>
 						</form>
@@ -416,12 +422,12 @@
 			class="flex max-h-[85vh] w-full max-w-lg flex-col overflow-y-auto rounded-lg border border-sage bg-paper p-5 shadow-xl"
 		>
 			<div class="mb-3 flex items-center justify-between">
-				<h2 class="text-base font-semibold text-ink">Relationships</h2>
+				<h2 class="text-base font-semibold text-ink">{t('person.relations.heading')}</h2>
 				<button
 					type="button"
 					onclick={closeRel}
 					class="text-ink/40 hover:text-ink"
-					aria-label="Close">✕</button
+					aria-label={t('common.close')}>✕</button
 				>
 			</div>
 
@@ -433,8 +439,10 @@
 			{#if partnerPrompt}
 				<div class="mb-3 rounded-md border border-clay bg-cream/60 p-3 text-sm">
 					<p class="text-ink">
-						Are <span class="font-semibold">{partnerPrompt.aName}</span> and
-						<span class="font-semibold">{partnerPrompt.bName}</span> partners?
+						{t('person.relations.partnerPrompt', {
+							aName: partnerPrompt.aName,
+							bName: partnerPrompt.bName
+						})}
 					</p>
 					<div class="mt-2 flex gap-2">
 						<form method="POST" action="?/linkPartners" use:enhance={promptEnhance}>
@@ -443,14 +451,14 @@
 							<button
 								type="submit"
 								class="rounded-md bg-clay px-3 py-1 text-xs font-medium text-ink hover:bg-clay/80"
-								>Yes, link them</button
+								>{t('person.relations.partnerPromptYes')}</button
 							>
 						</form>
 						<button
 							type="button"
 							onclick={afterPartnerPrompt}
 							class="rounded-md border border-sage px-3 py-1 text-xs text-ink/70 hover:bg-cream"
-							>No</button
+							>{t('person.relations.partnerPromptNo')}</button
 						>
 					</div>
 				</div>
@@ -459,7 +467,9 @@
 			<div class="flex flex-col gap-5">
 				<!-- Parents -->
 				<div class="flex flex-col gap-2">
-					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">Parents</h3>
+					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">
+						{t('person.relations.parents')}
+					</h3>
 					{#each data.parents as p (p.linkId)}
 						<div class="flex items-center gap-3 text-sm">
 							{@render relRow(p)}
@@ -468,7 +478,7 @@
 					{/each}
 					<RelationAdder
 						action="?/addParent"
-						verb="Add parent"
+						verb={t('person.relations.addParent')}
 						noun="parent"
 						candidates={data.candidates}
 						places={data.places}
@@ -478,11 +488,15 @@
 
 				<!-- Partners -->
 				<div class="flex flex-col gap-2">
-					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">Partners</h3>
+					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">
+						{t('person.relations.partners')}
+					</h3>
 					{#each data.partners as p (p.partnershipId)}
 						<div class="flex items-center gap-3 text-sm">
 							{@render relRow(p)}
-							<span class="text-ink/45">{p.status === 'former' ? '(former)' : ''}</span>
+							<span class="text-ink/45"
+								>{p.status === 'former' ? t('person.relations.former') : ''}</span
+							>
 							<form method="POST" action="?/setPartnerStatus" use:enhance>
 								<input type="hidden" name="partnershipId" value={p.partnershipId} />
 								<input
@@ -491,7 +505,9 @@
 									value={p.status === 'former' ? 'current' : 'former'}
 								/>
 								<button type="submit" class="text-xs text-ink/40 hover:text-ink"
-									>{p.status === 'former' ? 'Mark current' : 'Mark former'}</button
+									>{p.status === 'former'
+										? t('person.relations.markCurrent')
+										: t('person.relations.markFormer')}</button
 								>
 							</form>
 							{@render removeButton(
@@ -504,7 +520,7 @@
 					{/each}
 					<RelationAdder
 						action="?/addPartner"
-						verb="Add partner"
+						verb={t('person.relations.addPartner')}
 						noun="partner"
 						candidates={data.candidates}
 						places={data.places}
@@ -513,10 +529,10 @@
 					>
 						{#snippet extra()}
 							<label class="flex items-center gap-2 text-xs font-medium text-ink/70">
-								Status
+								{t('person.relations.partnerStatus')}
 								<select name="status" class={inputClass}>
-									<option value="current">Current</option>
-									<option value="former">Former</option>
+									<option value="current">{t('person.relations.partnerStatusCurrent')}</option>
+									<option value="former">{t('person.relations.partnerStatusFormer')}</option>
 								</select>
 							</label>
 						{/snippet}
@@ -525,7 +541,9 @@
 
 				<!-- Children -->
 				<div class="flex flex-col gap-2">
-					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">Children</h3>
+					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">
+						{t('person.relations.children')}
+					</h3>
 					{#each data.children as c (c.linkId)}
 						<div class="flex items-center gap-3 text-sm">
 							{@render relRow(c)}
@@ -534,7 +552,7 @@
 					{/each}
 					<RelationAdder
 						action="?/addChild"
-						verb="Add child"
+						verb={t('person.relations.addChild')}
 						noun="child"
 						candidates={data.candidates}
 						places={data.places}
@@ -544,35 +562,37 @@
 					>
 						{#snippet extra()}
 							<div class="flex flex-col gap-1.5 rounded-md border border-sage/60 bg-cream/30 p-2">
-								<span class="text-xs font-medium text-ink/70">Other parent</span>
+								<span class="text-xs font-medium text-ink/70"
+									>{t('person.relations.otherParent')}</span
+								>
 								{#if coCreate}
 									<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
 										<input
 											name="co_given_names"
-											placeholder="Given name(s)"
+											placeholder={t('common.givenNames')}
 											class="{inputClass} sm:col-span-1"
 										/>
 										<input
 											name="co_surname"
-											placeholder="Surname"
+											placeholder={t('common.surname')}
 											class="{inputClass} sm:col-span-1"
 										/>
 										<select name="co_sex" class="{inputClass} sm:col-span-1">
-											<option value="">Sex…</option>
-											<option value="female">Female</option>
-											<option value="male">Male</option>
-											<option value="other">Other</option>
+											<option value="">{t('person.relations.coSexPlaceholder')}</option>
+											<option value="female">{t('common.sexFemale')}</option>
+											<option value="male">{t('common.sexMale')}</option>
+											<option value="other">{t('common.sexOther')}</option>
 										</select>
 									</div>
 									<button
 										type="button"
 										onclick={() => (coCreate = false)}
 										class="self-start text-xs text-ink/50 hover:text-ink"
-										>Pick an existing person instead</button
+										>{t('person.relations.pickExisting')}</button
 									>
 								{:else}
 									<select name="coparent_id" class={inputClass}>
-										<option value="">None / unknown</option>
+										<option value="">{t('person.relations.noneUnknown')}</option>
 										{#each data.allPeople as ap (ap.id)}
 											<option value={ap.id}>{ap.name}</option>
 										{/each}
@@ -581,7 +601,7 @@
 										type="button"
 										onclick={() => (coCreate = true)}
 										class="self-start text-xs text-ink/50 hover:text-ink"
-										>＋ Create a new co-parent</button
+										>{t('person.relations.createCoparent')}</button
 									>
 								{/if}
 							</div>
@@ -591,18 +611,20 @@
 
 				<!-- Siblings — linked through shared parents. -->
 				<div class="flex flex-col gap-2">
-					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">Siblings</h3>
+					<h3 class="text-xs font-medium tracking-wide text-ink/45 uppercase">
+						{t('person.relations.siblings')}
+					</h3>
 					{#each data.siblings as s (s.id)}
 						<div class="flex items-center gap-3 text-sm">{@render relRow(s)}</div>
 					{/each}
 					{#if data.parents.length === 0}
 						<p class="text-xs text-ink/45">
-							Add a parent first — siblings are linked through shared parents.
+							{t('person.relations.noParentForSibling')}
 						</p>
 					{:else}
 						<RelationAdder
 							action="?/addSibling"
-							verb="Add sibling"
+							verb={t('person.relations.addSibling')}
 							noun="sibling"
 							candidates={data.candidates}
 							places={data.places}
@@ -610,9 +632,7 @@
 							onresult={handleRelResult}
 						/>
 						<p class="text-xs text-ink/45">
-							A new sibling is linked to {data.parents.length === 1
-								? 'your parent'
-								: 'all your parents'} automatically.
+							{t('person.relations.siblingHint', { parentCount: data.parents.length })}
 						</p>
 					{/if}
 				</div>

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { useI18n } from '$lib/i18n';
 	import PersonNode from '$lib/components/PersonNode.svelte';
+
+	const t = useI18n().t;
 	import { layoutGraph, buildConnectors, NODE_WIDTH, type LayoutResult } from '$lib/graph/layout';
 	import type { GraphData } from '$lib/graph/types';
 
@@ -113,7 +116,7 @@
 		<svg
 			class="h-full w-full {panning ? 'cursor-grabbing' : 'cursor-grab'}"
 			role="group"
-			aria-label="Direct relatives"
+			aria-label={t('map.graph.directRelatives')}
 			onwheel={onWheel}
 			onpointerdown={onPointerDown}
 			onpointermove={onPointerMove}
@@ -172,6 +175,6 @@
 			</g>
 		</svg>
 	{:else}
-		<div class="grid h-full place-items-center text-xs text-ink/40">Loading…</div>
+		<div class="grid h-full place-items-center text-xs text-ink/40">{t('map.graph.loading')}</div>
 	{/if}
 </div>

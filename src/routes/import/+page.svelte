@@ -2,9 +2,12 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { buildImportPlan, type ImportPlan } from '$lib/gedcom/import';
+	import { useI18n } from '$lib/i18n';
 	import { normalizePlaceName } from '$lib/place';
 	import { toasts } from '$lib/toast.svelte';
 	import type { ActionData } from './$types';
+
+	const t = useI18n().t;
 
 	let { form }: { form: ActionData } = $props();
 
@@ -38,14 +41,16 @@
 			gedcomText = await file.text();
 			const p = buildImportPlan(gedcomText);
 			if (p.persons.length === 0) {
-				parseError = 'No individuals were found in this file.';
+				parseError = t('import.noIndividuals');
 				return;
 			}
 			plan = p;
 			treeName =
-				p.treeName?.replace(/\.ged$/i, '') || file.name.replace(/\.ged$/i, '') || 'Imported tree';
+				p.treeName?.replace(/\.ged$/i, '') ||
+				file.name.replace(/\.ged$/i, '') ||
+				t('import.importedTree');
 		} catch {
-			parseError = 'This file could not be parsed as GEDCOM.';
+			parseError = t('import.parseError');
 		}
 	}
 
@@ -94,7 +99,9 @@
 		}
 		geocoding = false;
 		if (!cancelGeocode)
-			toasts.success(`Located ${locatedCount} of ${plan.placeNames.length} places.`);
+			toasts.success(
+				t('import.locatedToast', { located: locatedCount, total: plan.placeNames.length })
+			);
 	}
 
 	function stopGeocoding() {
@@ -116,15 +123,15 @@
 	};
 </script>
 
-<svelte:head><title>Import GEDCOM · HeritageAtlas</title></svelte:head>
+<svelte:head><title>{t('import.title')}</title></svelte:head>
 
 <div class="mx-auto flex max-w-2xl flex-col gap-6">
 	<div>
-		<a href={resolve('/dashboard')} class="text-sm text-ink/55 hover:text-ink">← Dashboard</a>
-		<h1 class="mt-2 text-2xl font-semibold text-ink">Import a GEDCOM file</h1>
+		<a href={resolve('/dashboard')} class="text-sm text-ink/55 hover:text-ink">{t('import.back')}</a
+		>
+		<h1 class="mt-2 text-2xl font-semibold text-ink">{t('import.heading')}</h1>
 		<p class="mt-1 text-sm text-ink/60">
-			Bring in a family tree exported from another genealogy program. It’s imported into a brand-new
-			tree — your existing trees are untouched.
+			{t('import.subtitle')}
 		</p>
 	</div>
 
@@ -147,11 +154,9 @@
 	>
 		<span class="text-2xl">⤓</span>
 		<span class="text-sm font-medium text-ink">
-			{fileName || 'Choose a .ged file'}
+			{fileName || t('import.chooseFile')}
 		</span>
-		<span class="text-xs text-ink/50"
-			>Click to browse or drag a file here · GEDCOM 5.5.1 or 7.0</span
-		>
+		<span class="text-xs text-ink/50">{t('import.dropHint')}</span>
 	</button>
 	<input
 		bind:this={fileInput}
@@ -175,9 +180,9 @@
 
 	{#if plan}
 		<div class="rounded-lg border border-sage bg-white p-4">
-			<h2 class="text-sm font-semibold text-ink">Preview</h2>
+			<h2 class="text-sm font-semibold text-ink">{t('import.previewHeading')}</h2>
 			<dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-				{#each [['People', plan.counts.persons], ['Partnerships', plan.counts.partnerships], ['Parent–child links', plan.counts.parentChild], ['Events', plan.counts.events], ['Places', plan.counts.places]] as [label, n] (label)}
+				{#each [[t('import.statPeople'), plan.counts.persons], [t('import.statPartnerships'), plan.counts.partnerships], [t('import.statParentChild'), plan.counts.parentChild], [t('import.statEvents'), plan.counts.events], [t('import.statPlaces'), plan.counts.places]] as [label, n] (label)}
 					<div class="flex flex-col">
 						<dt class="text-xs text-ink/50">{label}</dt>
 						<dd class="text-lg font-semibold text-ink">{n}</dd>
@@ -197,12 +202,9 @@
 		<!-- Optional geocoding -->
 		{#if plan.placeNames.length > 0}
 			<div class="rounded-lg border border-sage bg-white p-4">
-				<h2 class="text-sm font-semibold text-ink">Locate places (optional)</h2>
+				<h2 class="text-sm font-semibold text-ink">{t('import.locatePlacesHeading')}</h2>
 				<p class="mt-1 text-xs text-ink/60">
-					Look up coordinates for the {plan.placeNames.length} place names so imported people appear on
-					the map. This respects OpenStreetMap’s rate limit (~1/second), so it takes about {geocodeMinutes}
-					min. You can skip it and import now — unlocated places are queued and people simply won’t be
-					on the map until you locate them.
+					{t('import.locatePlacesDesc', { count: plan.placeNames.length, minutes: geocodeMinutes })}
 				</p>
 				<div class="mt-3 flex items-center gap-3">
 					{#if geocoding}
@@ -211,10 +213,14 @@
 							onclick={stopGeocoding}
 							class="rounded-md border border-sage px-3 py-1.5 text-sm text-ink hover:bg-cream"
 						>
-							Stop
+							{t('import.stop')}
 						</button>
 						<span class="text-sm text-ink/60">
-							Locating… {geocodeDone}/{plan.placeNames.length} ({locatedCount} found)
+							{t('import.locating', {
+								done: geocodeDone,
+								total: plan.placeNames.length,
+								located: locatedCount
+							})}
 						</span>
 					{:else}
 						<button
@@ -222,10 +228,12 @@
 							onclick={locatePlaces}
 							class="rounded-md border border-clay bg-clay/20 px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/30"
 						>
-							{locatedCount > 0 ? 'Resume locating' : 'Locate places'}
+							{locatedCount > 0 ? t('import.resumeLocating') : t('import.locatePlaces')}
 						</button>
 						{#if locatedCount > 0}
-							<span class="text-sm text-ink/60">{locatedCount} located</span>
+							<span class="text-sm text-ink/60"
+								>{t('import.locatedCount', { count: locatedCount })}</span
+							>
 						{/if}
 					{/if}
 				</div>
@@ -235,7 +243,7 @@
 		<!-- Commit -->
 		<form method="POST" action="?/commit" use:enhance={enhanceSubmit} class="flex flex-col gap-3">
 			<label class="flex flex-col gap-1 text-sm font-medium text-ink/70">
-				Tree name
+				{t('import.treeName')}
 				<input
 					name="name"
 					bind:value={treeName}
@@ -251,10 +259,10 @@
 				disabled={submitting || geocoding}
 				class="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-ink hover:bg-clay/80 disabled:cursor-not-allowed disabled:opacity-60"
 			>
-				{submitting ? 'Importing…' : `Import ${plan.counts.persons} people`}
+				{submitting ? t('import.importing') : t('import.importN', { count: plan.counts.persons })}
 			</button>
 			{#if geocoding}
-				<p class="text-xs text-ink/50">Finish or stop locating places before importing.</p>
+				<p class="text-xs text-ink/50">{t('import.geocodingWarning')}</p>
 			{/if}
 		</form>
 	{/if}

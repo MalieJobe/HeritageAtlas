@@ -1,16 +1,21 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { useI18n } from '$lib/i18n';
 	import { GEOCODE_ATTRIBUTION, type GeocodeResult } from '$lib/geocode';
+
+	const t = useI18n().t;
 
 	let {
 		onselect,
-		placeholder = 'Search for a place…',
+		placeholder,
 		id
 	}: {
 		onselect: (result: GeocodeResult) => void;
 		placeholder?: string;
 		id?: string;
 	} = $props();
+
+	let effectivePlaceholder = $derived(placeholder ?? t('map.place.searchPlaceholder'));
 
 	let query = $state('');
 	let results = $state<GeocodeResult[]>([]);
@@ -84,7 +89,7 @@
 		onfocus={() => {
 			if (results.length) open = true;
 		}}
-		{placeholder}
+		placeholder={effectivePlaceholder}
 		class="w-full rounded-md border border-sage bg-paper px-3 py-2 text-sm text-ink focus:border-ink/40 focus:outline-none"
 	/>
 
@@ -94,11 +99,11 @@
 			class="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-sage bg-white shadow-lg"
 		>
 			{#if loading}
-				<p class="px-3 py-2 text-sm text-ink/50">Searching…</p>
+				<p class="px-3 py-2 text-sm text-ink/50">{t('map.place.searching')}</p>
 			{:else if failed}
-				<p class="px-3 py-2 text-sm text-red-600">Couldn’t reach the geocoding service.</p>
+				<p class="px-3 py-2 text-sm text-red-600">{t('map.place.geocodeError')}</p>
 			{:else if results.length === 0}
-				<p class="px-3 py-2 text-sm text-ink/50">No matches.</p>
+				<p class="px-3 py-2 text-sm text-ink/50">{t('map.place.noMatches')}</p>
 			{:else}
 				<ul class="max-h-64 overflow-y-auto">
 					{#each results as result (result.osmRef ?? result.displayName)}

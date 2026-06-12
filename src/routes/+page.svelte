@@ -4,9 +4,12 @@
 	import FamilyGraph from '$lib/components/FamilyGraph.svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import Timeline from '$lib/components/Timeline.svelte';
+	import { useI18n } from '$lib/i18n';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	const t = useI18n().t;
 
 	// Live read-only demo state (the Windsor tree).
 	let demo = $derived(data.demo);
@@ -14,47 +17,40 @@
 	let demoYear = $state(untrack(() => demo?.timeline?.max ?? fallbackMax));
 	let demoSelected = $state<string | null>(null);
 
-	const steps = [
-		['Add your family', 'Add people and link parents, partners, and children into a tree.'],
-		['Add places & dates', 'Record births, deaths, and where they lived — with real coordinates.'],
-		[
-			'Watch them move',
-			'Scrub the timeline and watch your family travel the map, decade by decade.'
-		]
-	];
+	const steps = $derived([
+		[t('landing.howItWorks.step1.title'), t('landing.howItWorks.step1.body')],
+		[t('landing.howItWorks.step2.title'), t('landing.howItWorks.step2.body')],
+		[t('landing.howItWorks.step3.title'), t('landing.howItWorks.step3.body')]
+	]);
 
-	const features = [
-		['🌳', 'Interactive tree', 'A clean, pannable family tree that lays itself out automatically.'],
-		['🗺️', 'Historical map', 'See where everyone lived, plotted on a real map of the world.'],
-		[
-			'🕰️',
-			'Time-travel slider',
-			'Sweep through the years and watch people move, age, and pass on.'
-		],
-		['⤓', 'GEDCOM import', 'Bring an existing tree from Ancestry, MyHeritage, and more (soon).']
-	];
+	const features = $derived([
+		['🌳', t('landing.features.tree.title'), t('landing.features.tree.body')],
+		['🗺️', t('landing.features.map.title'), t('landing.features.map.body')],
+		['🕰️', t('landing.features.timeline.title'), t('landing.features.timeline.body')],
+		['⤓', t('landing.features.gedcom.title'), t('landing.features.gedcom.body')]
+	]);
 </script>
 
-<svelte:head><title>HeritageAtlas — map your family across time</title></svelte:head>
+<svelte:head><title>{t('landing.title')}</title></svelte:head>
 
 <div class="flex flex-col gap-20 py-8">
 	<!-- Hero -->
 	<section class="flex flex-col items-center gap-6 pt-8 text-center">
 		<h1 class="max-w-3xl text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-			Map your family across time.
+			{t('landing.hero.headline')}
 		</h1>
 		<p class="max-w-xl text-lg text-ink/65">
-			Build your family tree and watch your ancestors move across the world, decade by decade.
+			{t('landing.hero.subhead')}
 		</p>
 		<div class="flex flex-wrap items-center justify-center gap-3">
 			<a
 				href={resolve('/auth/signup')}
 				class="rounded-lg bg-clay px-5 py-2.5 font-medium text-ink shadow-sm hover:bg-clay/80"
 			>
-				Start your family tree
+				{t('landing.hero.cta')}
 			</a>
 			<a href="#demo" class="px-4 py-2.5 font-medium text-ink/70 hover:text-ink">
-				Explore the demo ↓
+				{t('landing.hero.exploreDemo')}
 			</a>
 		</div>
 	</section>
@@ -62,9 +58,9 @@
 	<!-- Demo (live embed lands here in 3.5) -->
 	<section id="demo" class="flex scroll-mt-20 flex-col gap-4">
 		<div class="flex flex-col gap-1 text-center">
-			<h2 class="text-2xl font-semibold text-ink">See it in action: the House of Windsor</h2>
+			<h2 class="text-2xl font-semibold text-ink">{t('landing.demo.heading')}</h2>
 			<p class="text-sm text-ink/60">
-				A real, interactive tree — scrub the years and watch the royals move across Europe.
+				{t('landing.demo.subhead')}
 			</p>
 		</div>
 		{#if demo}
@@ -101,14 +97,14 @@
 			<div
 				class="grid h-96 place-items-center rounded-xl border border-dashed border-sage bg-paper text-sm text-ink/40"
 			>
-				Demo unavailable
+				{t('landing.demo.unavailable')}
 			</div>
 		{/if}
 	</section>
 
 	<!-- How it works -->
 	<section class="flex flex-col gap-6">
-		<h2 class="text-center text-2xl font-semibold text-ink">How it works</h2>
+		<h2 class="text-center text-2xl font-semibold text-ink">{t('landing.howItWorks.heading')}</h2>
 		<ol class="grid gap-6 sm:grid-cols-3">
 			{#each steps as [title, body], i (title)}
 				<li class="flex flex-col gap-2">
@@ -137,21 +133,21 @@
 
 	<!-- Closing CTA -->
 	<section class="flex flex-col items-center gap-4 rounded-2xl bg-cream/60 px-6 py-12 text-center">
-		<h2 class="text-2xl font-semibold text-ink">Start mapping your family today.</h2>
+		<h2 class="text-2xl font-semibold text-ink">{t('landing.closingCta.heading')}</h2>
 		<a
 			href={resolve('/auth/signup')}
 			class="rounded-lg bg-clay px-5 py-2.5 font-medium text-ink shadow-sm hover:bg-clay/80"
 		>
-			Create your free account
+			{t('landing.closingCta.button')}
 		</a>
 	</section>
 
 	<!-- Footer -->
 	<footer class="flex flex-col items-center gap-2 border-t border-sage pt-6 text-sm text-ink/50">
-		<p>HeritageAtlas — record your family's history and see it on the map.</p>
+		<p>{t('landing.footer.tagline')}</p>
 		<nav class="flex gap-4">
-			<a href={resolve('/auth/login')} class="hover:text-ink">Log in</a>
-			<a href={resolve('/auth/signup')} class="hover:text-ink">Sign up</a>
+			<a href={resolve('/auth/login')} class="hover:text-ink">{t('common.logIn')}</a>
+			<a href={resolve('/auth/signup')} class="hover:text-ink">{t('common.signUp')}</a>
 		</nav>
 	</footer>
 </div>

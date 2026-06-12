@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { dev } from '$app/environment';
+import { translate } from '$lib/i18n/translate';
 import { buildTreeViewData, type TreeViewRows } from '$lib/server/treeViewData';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -24,10 +25,10 @@ function toRows(payload: SharedPayload): TreeViewRows {
 	};
 }
 
-export const load: PageServerLoad = async ({ params, cookies, locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ params, cookies, locals: { supabase, locale } }) => {
 	const token = params.token;
 	const { data: name } = await supabase.rpc('shared_tree_meta', { p_token: token });
-	if (!name) error(404, 'This shared tree link is not valid.');
+	if (!name) error(404, translate(locale, 'share.invalidLink'));
 
 	const pw = cookies.get(cookieName(token));
 	if (pw) {
@@ -43,16 +44,16 @@ export const load: PageServerLoad = async ({ params, cookies, locals: { supabase
 };
 
 export const actions: Actions = {
-	unlock: async ({ params, request, cookies, locals: { supabase } }) => {
+	unlock: async ({ params, request, cookies, locals: { supabase, locale } }) => {
 		const token = params.token;
 		const password = String((await request.formData()).get('password') ?? '');
-		if (!password) return fail(400, { error: 'Enter the password.' });
+		if (!password) return fail(400, { error: translate(locale, 'share.enterPassword') });
 
 		const { data } = await supabase.rpc('get_shared_tree', {
 			p_token: token,
 			p_password: password
 		});
-		if (!data) return fail(400, { error: 'That password is incorrect.' });
+		if (!data) return fail(400, { error: translate(locale, 'share.incorrectPassword') });
 
 		// Remember access for this link only (httpOnly, scoped to the share path).
 		cookies.set(cookieName(token), password, {

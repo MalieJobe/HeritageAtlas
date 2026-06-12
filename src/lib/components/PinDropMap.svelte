@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { useI18n } from '$lib/i18n';
 	import { osmRasterStyle } from '$lib/map/style';
+
+	const t = useI18n().t;
 
 	let {
 		lat = null,
@@ -57,4 +60,4 @@
 	class="w-full overflow-hidden rounded-md border border-sage"
 	style="height:{height}px"
 ></div>
-<p class="mt-1 text-xs text-ink/45">Click the map to drop a pin.</p>
+<p class="mt-1 text-xs text-ink/45">{t('map.place.clickToDrop')}</p>

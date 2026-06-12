@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { useI18n } from '$lib/i18n';
 	import {
 		EMPTY_FUZZY_DATE_PARTS,
 		fuzzyDateFromParts,
@@ -7,6 +8,8 @@
 		type DateQualifier,
 		type FuzzyDateParts
 	} from '$lib/fuzzyDate';
+
+	const t = useI18n().t;
 
 	let { value = EMPTY_FUZZY_DATE_PARTS }: { value?: FuzzyDateParts } = $props();
 
@@ -60,20 +63,20 @@
 		endYear = endMonth = endDay = '';
 	}
 
-	const MONTHS = [
-		'Jan',
-		'Feb',
-		'Mar',
-		'Apr',
-		'May',
-		'Jun',
-		'Jul',
-		'Aug',
-		'Sep',
-		'Oct',
-		'Nov',
-		'Dec'
-	];
+	let MONTHS = $derived([
+		t('map.date.month1'),
+		t('map.date.month2'),
+		t('map.date.month3'),
+		t('map.date.month4'),
+		t('map.date.month5'),
+		t('map.date.month6'),
+		t('map.date.month7'),
+		t('map.date.month8'),
+		t('map.date.month9'),
+		t('map.date.month10'),
+		t('map.date.month11'),
+		t('map.date.month12')
+	]);
 
 	const inputClass =
 		'rounded-md border border-sage bg-white px-2 py-1.5 text-sm text-ink focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none';
@@ -108,7 +111,7 @@
 		class="w-full rounded-md border border-sage bg-white px-3 py-1.5 text-left text-sm text-ink hover:border-clay focus:border-clay focus:ring-1 focus:ring-clay focus:outline-none"
 	>
 		{#if preview}<span class="text-ink">{preview}</span>{:else}<span class="text-ink/40"
-				>Add date</span
+				>{t('map.date.addDate')}</span
 			>{/if}
 	</button>
 
@@ -119,18 +122,18 @@
 	>
 		<div class="flex flex-wrap items-end gap-2">
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-				Qualifier
+				{t('map.date.qualifier')}
 				<select name="qualifier" bind:value={qualifier} class={inputClass}>
-					<option value="">Exact</option>
-					<option value="about">About</option>
-					<option value="before">Before</option>
-					<option value="after">After</option>
-					<option value="between">Between</option>
-					<option value="estimated">Estimated</option>
+					<option value="">{t('map.date.exact')}</option>
+					<option value="about">{t('map.date.about')}</option>
+					<option value="before">{t('map.date.before')}</option>
+					<option value="after">{t('map.date.after')}</option>
+					<option value="between">{t('map.date.between')}</option>
+					<option value="estimated">{t('map.date.estimated')}</option>
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-				Year
+				{t('map.date.year')}
 				<input
 					name="year"
 					type="text"
@@ -141,7 +144,7 @@
 				/>
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-				Month
+				{t('map.date.month')}
 				<select name="month" bind:value={month} class={inputClass}>
 					<option value="">—</option>
 					{#each MONTHS as label, i (i)}
@@ -150,7 +153,7 @@
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-				Day
+				{t('map.date.day')}
 				<input
 					name="day"
 					type="text"
@@ -168,9 +171,9 @@
 
 		{#if qualifier === 'between'}
 			<div class="flex flex-wrap items-end gap-2">
-				<span class="pb-1.5 text-xs font-medium text-ink/45">and</span>
+				<span class="pb-1.5 text-xs font-medium text-ink/45">{t('map.date.and')}</span>
 				<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-					End year
+					{t('map.date.endYear')}
 					<input
 						name="end_year"
 						type="text"
@@ -181,7 +184,7 @@
 					/>
 				</label>
 				<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-					Month
+					{t('map.date.month')}
 					<select name="end_month" bind:value={endMonth} class={inputClass}>
 						<option value="">—</option>
 						{#each MONTHS as label, i (i)}
@@ -190,7 +193,7 @@
 					</select>
 				</label>
 				<label class="flex flex-col gap-1 text-xs font-medium text-ink/60">
-					Day
+					{t('map.date.day')}
 					<input
 						name="end_day"
 						type="text"
@@ -210,10 +213,12 @@
 		<div class="flex items-center justify-between gap-2 border-t border-sage/60 pt-2">
 			<p class="text-xs text-ink/55">
 				{#if preview}
-					Reads as: <span class="font-medium text-ink/80">{preview}</span>
-					{#if precision}<span class="text-ink/40"> · {precision} precision</span>{/if}
+					{t('map.date.readsAs')} <span class="font-medium text-ink/80">{preview}</span>
+					{#if precision}<span class="text-ink/40">
+							· {t('map.date.precision', { precision })}</span
+						>{/if}
 				{:else}
-					No date
+					{t('map.date.noDate')}
 				{/if}
 			</p>
 			<div class="flex items-center gap-1">
@@ -223,7 +228,7 @@
 						onclick={clear}
 						class="rounded px-2 py-1 text-xs text-ink/55 hover:bg-cream hover:text-ink"
 					>
-						Clear
+						{t('map.date.clear')}
 					</button>
 				{/if}
 				<button
@@ -231,7 +236,7 @@
 					onclick={() => (open = false)}
 					class="rounded bg-clay px-2.5 py-1 text-xs font-medium text-ink hover:bg-clay/80"
 				>
-					Done
+					{t('map.date.done')}
 				</button>
 			</div>
 		</div>

@@ -4,6 +4,7 @@ import type { Database } from '$lib/supabase/types';
 import { findOrCreatePlace } from '$lib/server/places';
 import type { PlaceSelection } from '$lib/place';
 import type { Actions, PageServerLoad } from './$types';
+import { translate } from '$lib/i18n';
 
 const PHOTO_BUCKET = 'person-photos';
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -71,10 +72,11 @@ async function resolvePlace(db: DB, treeId: string, raw: string): Promise<string
 }
 
 export const actions: Actions = {
-	createTree: async ({ request, locals: { supabase, user } }) => {
+	createTree: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const name = str(await request.formData(), 'name');
-		if (!name) return fail(400, { step: 'tree', error: 'Please name your family tree.' });
+		if (!name)
+			return fail(400, { step: 'tree', error: translate(locale, 'onboarding.error.nameRequired') });
 		const { data, error } = await supabase
 			.from('trees')
 			.insert({ name, owner_id: user.id })
@@ -84,14 +86,22 @@ export const actions: Actions = {
 		return { treeId: data.id };
 	},
 
-	addSelf: async ({ request, locals: { supabase, user } }) => {
+	addSelf: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const f = await request.formData();
 		const treeId = str(f, 'treeId');
 		const given = str(f, 'given');
 		const surname = str(f, 'surname');
-		if (!treeId) return fail(400, { step: 'self', error: 'Something went wrong — restart.' });
-		if (!given && !surname) return fail(400, { step: 'self', error: 'Enter your name.' });
+		if (!treeId)
+			return fail(400, {
+				step: 'self',
+				error: translate(locale, 'onboarding.error.somethingWentWrong')
+			});
+		if (!given && !surname)
+			return fail(400, {
+				step: 'self',
+				error: translate(locale, 'onboarding.error.selfNameRequired')
+			});
 		try {
 			const selfId = await addPerson(supabase, treeId, given, surname, str(f, 'sex') as Sex);
 
@@ -132,12 +142,16 @@ export const actions: Actions = {
 		}
 	},
 
-	addParents: async ({ request, locals: { supabase, user } }) => {
+	addParents: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const f = await request.formData();
 		const treeId = str(f, 'treeId');
 		const selfId = str(f, 'selfId');
-		if (!treeId || !selfId) return fail(400, { step: 'parents', error: 'Something went wrong.' });
+		if (!treeId || !selfId)
+			return fail(400, {
+				step: 'parents',
+				error: translate(locale, 'onboarding.error.somethingWentWrongShort')
+			});
 		try {
 			for (const role of ['father', 'mother'] as const) {
 				const given = str(f, `${role}Given`);
@@ -160,14 +174,18 @@ export const actions: Actions = {
 		}
 	},
 
-	addPartner: async ({ request, locals: { supabase, user } }) => {
+	addPartner: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const f = await request.formData();
 		const treeId = str(f, 'treeId');
 		const selfId = str(f, 'selfId');
 		const given = str(f, 'given');
 		const surname = str(f, 'surname');
-		if (!treeId || !selfId) return fail(400, { step: 'partner', error: 'Something went wrong.' });
+		if (!treeId || !selfId)
+			return fail(400, {
+				step: 'partner',
+				error: translate(locale, 'onboarding.error.somethingWentWrongShort')
+			});
 		if (!given && !surname) return { partnerId: null };
 		try {
 			const partnerId = await addPerson(supabase, treeId, given, surname, str(f, 'sex') as Sex);
@@ -181,14 +199,18 @@ export const actions: Actions = {
 		}
 	},
 
-	addChildren: async ({ request, locals: { supabase, user } }) => {
+	addChildren: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const f = await request.formData();
 		const treeId = str(f, 'treeId');
 		const selfId = str(f, 'selfId');
 		const partnerId = str(f, 'partnerId');
 		const surname = str(f, 'childSurname');
-		if (!treeId || !selfId) return fail(400, { step: 'children', error: 'Something went wrong.' });
+		if (!treeId || !selfId)
+			return fail(400, {
+				step: 'children',
+				error: translate(locale, 'onboarding.error.somethingWentWrongShort')
+			});
 		try {
 			const givens = f.getAll('childGiven').map((v) => String(v).trim());
 			const dobs = f.getAll('childDob').map((v) => String(v).trim());

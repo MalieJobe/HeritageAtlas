@@ -1,0 +1,12 @@
+{
+	"invitations.title": "Einladungen · HeritageAtlas",
+	"invitations.backLink": "← Deine Stammbäume",
+	"invitations.heading": "Einladungen",
+	"invitations.asRole": "als {role}",
+	"invitations.roleViewer": "Betrachter",
+	"invitations.roleEditor": "Bearbeiter",
+	"invitations.accept": "Annehmen",
+	"invitations.decline": "Ablehnen",
+	"invitations.empty": "Du hast keine ausstehenden Einladungen.",
+	"invitations.noLongerAvailable": "Diese Einladung ist nicht mehr verfügbar."
+}

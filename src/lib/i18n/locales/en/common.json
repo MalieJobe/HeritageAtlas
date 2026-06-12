@@ -28,5 +28,8 @@
 	"common.dashboard": "Dashboard",
 	"common.account": "Account",
 	"common.born": "Born",
-	"common.died": "Died"
+	"common.died": "Died",
+	"common.notifications": "Notifications",
+	"common.dismiss": "Dismiss",
+	"common.notAuthenticated": "Not authenticated"
 }

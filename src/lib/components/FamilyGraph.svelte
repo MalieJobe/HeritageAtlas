@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { useI18n } from '$lib/i18n';
 	import PersonAvatar from '$lib/components/PersonAvatar.svelte';
 	import PersonNode from '$lib/components/PersonNode.svelte';
+
+	const t = useI18n().t;
 	import type { GraphData, GraphPerson } from '$lib/graph/types';
 	import {
 		layoutGraph,
@@ -273,11 +276,11 @@
 >
 	{#if laying}
 		<div class="absolute inset-0 grid place-items-center text-sm text-ink/50">
-			Laying out the family graph…
+			{t('map.graph.layingOut')}
 		</div>
 	{:else if failed}
 		<div class="absolute inset-0 grid place-items-center text-sm text-red-600">
-			Couldn’t lay out the graph.
+			{t('map.graph.layoutFailed')}
 		</div>
 	{/if}
 
@@ -285,7 +288,7 @@
 		<svg
 			class="h-full w-full {panning ? 'cursor-grabbing' : 'cursor-grab'}"
 			role="application"
-			aria-label="Family graph"
+			aria-label={t('map.graph.ariaLabel')}
 			onwheel={onWheel}
 			onpointerdown={onPointerDown}
 			onpointermove={onPointerMove}
@@ -390,18 +393,18 @@
 		>
 			<button
 				class="px-2.5 py-1.5 text-lg leading-none hover:bg-cream"
-				aria-label="Zoom in"
+				aria-label={t('map.graph.zoomIn')}
 				onclick={() => zoomBy(1.2)}>+</button
 			>
 			<button
 				class="border-t border-sage px-2.5 py-1.5 text-lg leading-none hover:bg-cream"
-				aria-label="Zoom out"
+				aria-label={t('map.graph.zoomOut')}
 				onclick={() => zoomBy(1 / 1.2)}>−</button
 			>
 			<button
 				class="border-t border-sage px-2 py-1.5 text-xs hover:bg-cream"
-				aria-label="Fit to view"
-				onclick={fitToView}>Fit</button
+				aria-label={t('map.graph.fitToView')}
+				onclick={fitToView}>{t('map.graph.fit')}</button
 			>
 		</div>
 	{/if}
@@ -413,7 +416,7 @@
 		>
 			<button
 				class="absolute top-2 right-2 text-ink/40 hover:text-ink"
-				aria-label="Close"
+				aria-label={t('common.close')}
 				onclick={() => (controlled ? onselect?.(null) : (internalSelected = null))}>✕</button
 			>
 			<div class="flex flex-col items-center gap-3 text-center">
@@ -428,7 +431,7 @@
 					href={resolve('/trees/[treeId]/persons/[personId]', { treeId, personId: selected.id })}
 					class="w-full rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-ink hover:bg-clay/80"
 				>
-					Open profile
+					{t('map.graph.openProfile')}
 				</a>
 			</div>
 		</div>

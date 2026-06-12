@@ -1,0 +1,22 @@
+{
+	"dashboard.title": "Übersicht · HeritageAtlas",
+	"dashboard.welcome": "Willkommen zurück, {name}",
+	"dashboard.subtitle": "Deine Stammbäume.",
+	"dashboard.pending": "Du hast {count, plural, one {# ausstehende Einladung} other {# ausstehende Einladungen}}.",
+	"dashboard.reviewLink": "Ansehen →",
+	"dashboard.onThisDay": "Heute in der Geschichte",
+	"dashboard.birthAnniversary": "✳ {name} würde {years, plural, one {# Jahr} other {# Jahre}} alt werden (geb. {year})",
+	"dashboard.deathAnniversary": "† {name} — vor {years, plural, one {# Jahr} other {# Jahren}} gestorben (gest. {year})",
+	"dashboard.treeDot": "· {treeName}",
+	"dashboard.statPeople": "{count, plural, one {# Person} other {# Personen}}",
+	"dashboard.statGenerations": "· {count, plural, one {# Generation} other {# Generationen}}",
+	"dashboard.statPlaces": "· {count, plural, one {# Ort} other {# Orte}}",
+	"dashboard.openTree": "Öffnen →",
+	"dashboard.quickActions": "Schnellaktionen",
+	"dashboard.treeNamePlaceholder": "Name des Stammbaums",
+	"dashboard.newTree": "Neuer Stammbaum",
+	"dashboard.importGedcom": "GEDCOM importieren",
+	"dashboard.noTrees": "Noch keine Stammbäume — erstelle deinen ersten oben, um deine Familie zu kartieren.",
+	"dashboard.treeNameRequired": "Bitte gib einen Namen für den Stammbaum ein.",
+	"dashboard.treeNameTooLong": "Der Name darf höchstens 200 Zeichen lang sein."
+}

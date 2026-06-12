@@ -1,11 +1,14 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import { translate } from '$lib/i18n/translate';
+import type { Locale } from '$lib/i18n/locale';
 import type { Actions, PageServerLoad } from './$types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function loadTree(
 	supabase: App.Locals['supabase'],
-	treeId: string
+	treeId: string,
+	locale: Locale
 ): Promise<{ id: string; name: string; owner_id: string; share_token: string | null }> {
 	const { data: tree } = await supabase
 		.from('trees')
@@ -13,15 +16,15 @@ async function loadTree(
 		.eq('id', treeId)
 		.maybeSingle();
 	if (!tree) {
-		error(404, 'Tree not found');
+		error(404, translate(locale, 'tree.notFound'));
 	}
 	return tree;
 }
 
-export const load: PageServerLoad = async ({ params, locals: { supabase, user } }) => {
+export const load: PageServerLoad = async ({ params, locals: { supabase, user, locale } }) => {
 	if (!user) redirect(303, '/auth/login');
 
-	const tree = await loadTree(supabase, params.treeId);
+	const tree = await loadTree(supabase, params.treeId, locale);
 	const isOwner = tree.owner_id === user.id;
 
 	const { data: memberRows } = await supabase
@@ -70,20 +73,20 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, user } 
 };
 
 export const actions: Actions = {
-	rename: async ({ params, request, locals: { supabase, user } }) => {
+	rename: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
-		const tree = await loadTree(supabase, params.treeId);
+		const tree = await loadTree(supabase, params.treeId, locale);
 		if (tree.owner_id !== user.id) {
-			return fail(403, { renameError: 'Only the owner can rename this tree.' });
+			return fail(403, { renameError: translate(locale, 'tree.settings.errorRenameOwnerOnly') });
 		}
 
 		const formData = await request.formData();
 		const name = String(formData.get('name') ?? '').trim();
 		if (!name) {
-			return fail(400, { renameError: 'Please enter a tree name.' });
+			return fail(400, { renameError: translate(locale, 'tree.settings.errorNoName') });
 		}
 		if (name.length > 200) {
-			return fail(400, { renameError: 'Name must be 200 characters or fewer.' });
+			return fail(400, { renameError: translate(locale, 'tree.settings.errorNameTooLong') });
 		}
 
 		const { error: dbError } = await supabase
@@ -99,11 +102,11 @@ export const actions: Actions = {
 
 	// Create or rotate a password-protected public share link (owner only; the RPC
 	// re-checks ownership and hashes the password in the database).
-	share: async ({ params, request, locals: { supabase, user } }) => {
+	share: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const password = String((await request.formData()).get('password') ?? '');
 		if (password.length < 4) {
-			return fail(400, { shareError: 'Password must be at least 4 characters.' });
+			return fail(400, { shareError: translate(locale, 'tree.settings.errorSharePassword') });
 		}
 		const { error: rpcError } = await supabase.rpc('set_tree_share', {
 			p_tree_id: params.treeId,
@@ -123,11 +126,11 @@ export const actions: Actions = {
 		return { unshared: true };
 	},
 
-	invite: async ({ params, request, locals: { supabase, user } }) => {
+	invite: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
-		const tree = await loadTree(supabase, params.treeId);
+		const tree = await loadTree(supabase, params.treeId, locale);
 		if (tree.owner_id !== user.id) {
-			return fail(403, { inviteError: 'Only the owner can invite members.' });
+			return fail(403, { inviteError: translate(locale, 'tree.settings.errorInviteOwnerOnly') });
 		}
 
 		const formData = await request.formData();
@@ -137,10 +140,16 @@ export const actions: Actions = {
 		const role = String(formData.get('role') ?? 'viewer');
 
 		if (!EMAIL_RE.test(email)) {
-			return fail(400, { inviteError: 'Please enter a valid email address.', email });
+			return fail(400, {
+				inviteError: translate(locale, 'tree.settings.errorInvalidEmail'),
+				email
+			});
 		}
 		if (role !== 'editor' && role !== 'viewer') {
-			return fail(400, { inviteError: 'Pick a role of editor or viewer.', email });
+			return fail(400, {
+				inviteError: translate(locale, 'tree.settings.errorInviteRoleInvalid'),
+				email
+			});
 		}
 
 		const { error: dbError } = await supabase
@@ -151,7 +160,7 @@ export const actions: Actions = {
 			// 23505 = unique_violation on (tree_id, email)
 			const message =
 				dbError.code === '23505'
-					? 'That email has already been invited to this tree.'
+					? translate(locale, 'tree.settings.errorAlreadyInvited')
 					: dbError.message;
 			return fail(400, { inviteError: message, email });
 		}
@@ -159,11 +168,11 @@ export const actions: Actions = {
 		return { invited: email };
 	},
 
-	revoke: async ({ params, request, locals: { supabase, user } }) => {
+	revoke: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
-		const tree = await loadTree(supabase, params.treeId);
+		const tree = await loadTree(supabase, params.treeId, locale);
 		if (tree.owner_id !== user.id) {
-			return fail(403, { inviteError: 'Only the owner can revoke invitations.' });
+			return fail(403, { inviteError: translate(locale, 'tree.settings.errorRevokeOwnerOnly') });
 		}
 
 		const formData = await request.formData();
@@ -176,17 +185,17 @@ export const actions: Actions = {
 		return { revoked: true };
 	},
 
-	setRole: async ({ params, request, locals: { supabase, user } }) => {
+	setRole: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
-		const tree = await loadTree(supabase, params.treeId);
+		const tree = await loadTree(supabase, params.treeId, locale);
 		if (tree.owner_id !== user.id) {
-			return fail(403, { memberError: 'Only the owner can change roles.' });
+			return fail(403, { memberError: translate(locale, 'tree.settings.errorRoleOwnerOnly') });
 		}
 		const formData = await request.formData();
 		const userId = String(formData.get('userId') ?? '');
 		const role = String(formData.get('role') ?? '');
 		if (role !== 'editor' && role !== 'viewer') {
-			return fail(400, { memberError: 'Pick a role of editor or viewer.' });
+			return fail(400, { memberError: translate(locale, 'tree.settings.errorRoleInvalid') });
 		}
 		const { error: dbError } = await supabase
 			.from('tree_members')
@@ -198,11 +207,11 @@ export const actions: Actions = {
 		return { memberUpdated: true };
 	},
 
-	removeMember: async ({ params, request, locals: { supabase, user } }) => {
+	removeMember: async ({ params, request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
-		const tree = await loadTree(supabase, params.treeId);
+		const tree = await loadTree(supabase, params.treeId, locale);
 		if (tree.owner_id !== user.id) {
-			return fail(403, { memberError: 'Only the owner can remove members.' });
+			return fail(403, { memberError: translate(locale, 'tree.settings.errorRemoveOwnerOnly') });
 		}
 		const userId = String((await request.formData()).get('userId') ?? '');
 		const { error: dbError } = await supabase
@@ -215,11 +224,11 @@ export const actions: Actions = {
 		return { memberRemoved: true };
 	},
 
-	delete: async ({ params, locals: { supabase, user } }) => {
+	delete: async ({ params, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
-		const tree = await loadTree(supabase, params.treeId);
+		const tree = await loadTree(supabase, params.treeId, locale);
 		if (tree.owner_id !== user.id) {
-			return fail(403, { deleteError: 'Only the owner can delete this tree.' });
+			return fail(403, { deleteError: translate(locale, 'tree.settings.errorDeleteOwnerOnly') });
 		}
 
 		const { error: dbError } = await supabase.from('trees').delete().eq('id', params.treeId);
