@@ -263,6 +263,32 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
       rejection, password-protected sharing, account-action regression). Scripts: `pnpm test`,
       `pnpm e2e`.
 
+## Phase 7 — Internationalisation (English + German)
+
+- [x] **7.1 i18n core** — `src/lib/i18n/`: per-area JSON locale files with flat dot-notation keys
+      (`common`, `auth`, `account`, `dashboard`, `tree`, `person`, `import`, `onboarding`,
+      `landing`, `invitations`, `share`, `map`), merged via `import.meta.glob`. Pure
+      `translate(locale, key, values)` (ICU via `intl-messageformat`) for server/loads/tests;
+      `provideI18n()`/`useI18n()` wrap it in a `$state`-backed, SSR-safe component context so
+      `{t('…')}` re-renders live on language change.
+- [x] **7.2 Locale persistence** — `profiles.locale` (migration `0019`) follows the user across
+      devices, mirrored to a non-httpOnly `ha_locale` cookie each request so SSR (and anonymous
+      `/share` pages) render in the right language with no English flash. Resolved per-request in
+      `hooks.server.ts` (profile → cookie → default); `<html lang>` set via `%lang%`. Language is
+      app state, never in the URL.
+- [x] **7.3 Language switch** — Account settings has a Language `<select>` that switches the UI
+      instantly (`setLocale` on the context) and persists via a `setLocale` action (profile + cookie).
+- [x] **7.4 Full extraction** — every user-facing string across all routes/components and server
+      `fail()`/`error()` messages translated to English + German (informal "du").
+- [x] **7.5 Enforcement tests** — `messages.test.ts` (en/de key parity, no blanks, ICU-arg parity)
+      and `no-hardcoded-strings.test.ts` (scans every `.svelte` text + `placeholder/title/aria-label/
+    alt` and route server files; fails with a file:line list of any untranslated literal).
+
+> ⚠️ **Action needed:** migration `0019_profile_locale.sql` (adds `profiles.locale`) is committed
+> but **not yet applied to the live DB** (Supabase MCP/CLI was unavailable this session). The app
+> works via the `ha_locale` cookie until then; once applied, the chosen language also syncs to the
+> profile across devices. Apply via Supabase MCP `apply_migration` or the dashboard SQL editor.
+
 ## Deferred (revisit later)
 
 - Living-person privacy redaction (the password-protected share view hides photos; full redaction
