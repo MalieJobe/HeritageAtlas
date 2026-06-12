@@ -47,6 +47,7 @@
 		"@supabase/ssr": "^0.10.3",
 		"@supabase/supabase-js": "^2.107.0",
 		"elkjs": "^0.11.1",
+		"intl-messageformat": "^11.2.8",
 		"maplibre-gl": "^5.24.0"
 	}
 }

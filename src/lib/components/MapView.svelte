@@ -58,7 +58,7 @@
 	/* eslint-enable svelte/prefer-svelte-reactivity */
 
 	// How long a dot takes to glide to a new location on a year change.
-	const MOVE_DURATION = 400;
+	const MOVE_DURATION = 800;
 	const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 	/** Ease a marker from where it currently sits to a new lng/lat over MOVE_DURATION. */
