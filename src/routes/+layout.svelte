@@ -6,11 +6,21 @@
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
+	import { provideI18n } from '$lib/i18n';
 
 	let { children, data } = $props();
 
 	let supabase = $derived(data.supabase);
 	let session = $derived(data.session);
+
+	// One i18n context for the whole app. Seed it from the server-resolved locale
+	// (profile → cookie) and keep it in sync if that changes after an invalidation
+	// — the account language switch updates it directly for an instant change.
+	// svelte-ignore state_referenced_locally
+	const i18n = provideI18n(data.locale);
+	$effect(() => {
+		i18n.setLocale(data.locale);
+	});
 
 	// The tree home is a full-bleed split view (tree | map + timeline); every other
 	// page sits in the usual centred, padded column.
