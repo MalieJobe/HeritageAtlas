@@ -1,10 +1,13 @@
 import { createSupabaseServerClient } from '$lib/supabase/server';
-import { isLocale, toLocale, type Locale } from '$lib/i18n/locale';
+import {
+	isLocale,
+	toLocale,
+	LOCALE_COOKIE,
+	LOCALE_COOKIE_MAX_AGE,
+	type Locale
+} from '$lib/i18n/locale';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-
-const LOCALE_COOKIE = 'ha_locale';
-const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 /** Routes that do NOT require an authenticated session. */
 const PUBLIC_ROUTES = ['/', '/auth', '/share'];

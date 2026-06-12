@@ -1,7 +1,9 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import { translate } from '$lib/i18n/translate';
+import { isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from '$lib/i18n/locale';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
+export const load: PageServerLoad = async ({ locals: { supabase, user, locale } }) => {
 	// The auth guard guarantees a user here, but narrow the type for safety.
 	if (!user) {
 		redirect(303, '/auth/login');
@@ -14,7 +16,7 @@ export const load: PageServerLoad = async ({ locals: { supabase, user } }) => {
 		.maybeSingle();
 
 	if (dbError) {
-		error(500, 'Could not load your profile.');
+		error(500, translate(locale, 'account.loadError'));
 	}
 
 	return {
@@ -46,15 +48,32 @@ export const actions: Actions = {
 		return { displayName, success: true };
 	},
 
-	changePassword: async ({ request, locals: { supabase, user } }) => {
+	changePassword: async ({ request, locals: { supabase, user, locale } }) => {
 		if (!user) redirect(303, '/auth/login');
 		const password = String((await request.formData()).get('password') ?? '');
 		if (password.length < 8) {
-			return fail(400, { passwordError: 'Password must be at least 8 characters.' });
+			return fail(400, { passwordError: translate(locale, 'account.passwordTooShort') });
 		}
 		const { error: authError } = await supabase.auth.updateUser({ password });
 		if (authError) return fail(400, { passwordError: authError.message });
 		return { passwordChanged: true };
+	},
+
+	// Persist the UI language: update the profile (follows the user across devices)
+	// and refresh the cookie (SSR + instant client switch, which the page already
+	// applied optimistically).
+	setLocale: async ({ request, cookies, locals: { supabase, user } }) => {
+		if (!user) redirect(303, '/auth/login');
+		const value = String((await request.formData()).get('locale') ?? '');
+		if (!isLocale(value)) return fail(400, { localeError: true });
+		cookies.set(LOCALE_COOKIE, value, {
+			path: '/',
+			maxAge: LOCALE_COOKIE_MAX_AGE,
+			httpOnly: false,
+			sameSite: 'lax'
+		});
+		await supabase.from('profiles').update({ locale: value }).eq('id', user.id);
+		return { localeChanged: true };
 	},
 
 	deleteAccount: async ({ locals: { supabase, user } }) => {

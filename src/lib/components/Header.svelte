@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { useI18n } from '$lib/i18n';
 	import type { User } from '@supabase/supabase-js';
 
 	let { user = null }: { user?: User | null } = $props();
+
+	const t = useI18n().t;
 
 	// When a tree/person page is loaded, its data carries the current tree — show it
 	// as a breadcrumb (the logo already links back to the dashboard).
@@ -75,7 +78,7 @@
 								onclick={() => (menuOpen = false)}
 								class="block px-3 py-2 text-ink/80 hover:bg-cream"
 							>
-								Account
+								{t('common.account')}
 							</a>
 							<form method="POST" action={resolve('/auth/logout')} class="border-t border-sage/60">
 								<button
@@ -83,19 +86,21 @@
 									role="menuitem"
 									class="block w-full px-3 py-2 text-left text-ink/80 hover:bg-cream"
 								>
-									Sign out
+									{t('common.signOut')}
 								</button>
 							</form>
 						</div>
 					{/if}
 				</div>
 			{:else}
-				<a href={resolve('/auth/login')} class="font-medium text-ink/70 hover:text-ink"> Log in </a>
+				<a href={resolve('/auth/login')} class="font-medium text-ink/70 hover:text-ink">
+					{t('common.logIn')}
+				</a>
 				<a
 					href={resolve('/auth/signup')}
 					class="rounded-md bg-clay px-3 py-1 font-medium text-ink hover:bg-clay/80"
 				>
-					Sign up
+					{t('common.signUp')}
 				</a>
 			{/if}
 		</nav>

@@ -1,0 +1,18 @@
+{
+	"account.title": "Account · HeritageAtlas",
+	"account.heading": "Account",
+	"account.subtitle": "Manage your account details.",
+	"account.displayName": "Display name",
+	"account.displayNamePlaceholder": "How you appear to collaborators",
+	"account.language": "Language",
+	"account.changePassword": "Change password",
+	"account.newPasswordPlaceholder": "New password (min 8 characters)",
+	"account.passwordUpdated": "Password updated.",
+	"account.updatePassword": "Update password",
+	"account.deleteHeading": "Delete account",
+	"account.deleteWarning": "Permanently deletes your account and every tree you own, with all of their people, places, and events. This cannot be undone.",
+	"account.confirmDelete": "Yes, delete my account",
+	"account.deleteButton": "Delete account",
+	"account.loadError": "Could not load your profile.",
+	"account.passwordTooShort": "Password must be at least 8 characters."
+}

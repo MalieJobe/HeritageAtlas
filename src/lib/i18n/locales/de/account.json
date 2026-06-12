@@ -1,0 +1,18 @@
+{
+	"account.title": "Konto · HeritageAtlas",
+	"account.heading": "Konto",
+	"account.subtitle": "Verwalte deine Kontodaten.",
+	"account.displayName": "Anzeigename",
+	"account.displayNamePlaceholder": "Wie du für Mitwirkende erscheinst",
+	"account.language": "Sprache",
+	"account.changePassword": "Passwort ändern",
+	"account.newPasswordPlaceholder": "Neues Passwort (mind. 8 Zeichen)",
+	"account.passwordUpdated": "Passwort aktualisiert.",
+	"account.updatePassword": "Passwort aktualisieren",
+	"account.deleteHeading": "Konto löschen",
+	"account.deleteWarning": "Löscht dein Konto und alle Stammbäume, die dir gehören, mit allen Personen, Orten und Ereignissen unwiderruflich. Dies kann nicht rückgängig gemacht werden.",
+	"account.confirmDelete": "Ja, mein Konto löschen",
+	"account.deleteButton": "Konto löschen",
+	"account.loadError": "Dein Profil konnte nicht geladen werden.",
+	"account.passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein."
+}
