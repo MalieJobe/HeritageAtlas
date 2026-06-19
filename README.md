@@ -9,8 +9,7 @@ family lived, decade by decade.
 
 ![Family tree beside a world map of where the family lived, with a timeline slider](docs/screenshots/overview.png)
 
-> The screenshots use the bundled **House of Windsor** demo tree (public sample data) — not
-> real personal data.
+> The screenshots use the bundled **House of Windsor** demo tree (public sample data).
 
 ## What it does
 
