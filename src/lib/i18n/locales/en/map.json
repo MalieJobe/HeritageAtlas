@@ -8,8 +8,6 @@
 	"map.timeline.done": "done",
 	"map.timeline.custom": "(custom)",
 	"map.timeline.adjustRange": "Adjust range",
-	"map.view.clusterTitle": "{count} people here — click to zoom in",
-	"map.view.clusterLabel": "{count} people here",
 	"map.view.fitEveryone": "Fit everyone",
 	"map.view.fitEveryoneLabel": "Fit everyone in view",
 	"map.view.followLivingTitle": "Follow the living — keep everyone alive at this year in view",

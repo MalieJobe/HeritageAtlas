@@ -4,7 +4,7 @@
 	import { osmRasterStyle } from '$lib/map/style';
 	import { surnameColor } from '$lib/surnameColor';
 	import { resolvePositions } from '$lib/map/positionResolver';
-	import { layoutMarkers, type ClusterInstruction } from '$lib/map/markerLayout';
+	import { layoutMarkers } from '$lib/map/markerLayout';
 	import type { MapPerson } from '$lib/map/types';
 	import { useI18n } from '$lib/i18n';
 
@@ -47,8 +47,7 @@
 		{
 			marker: import('maplibre-gl').Marker;
 			element: HTMLButtonElement;
-			kind: 'dot' | 'cluster';
-			memberIds: string[];
+			id: string;
 			// Current shown geo position + the latest target, so a year scrub can ease
 			// the dot to its new spot rather than snapping. `anim` is the rAF handle.
 			curLng: number;
@@ -85,13 +84,20 @@
 		entry.anim = requestAnimationFrame(step);
 	}
 
-	const MIN_DIST = 48; // dots are 44px — keep a little air between them
-	// Past this scatter footprint a crowd would land too far from the truth, so it
-	// collapses to a count badge instead — kept fairly tight so dense spots turn
-	// into a number early rather than fanning out wildly (groups of ~5+ cluster).
-	const MAX_SPREAD = 72;
-	// Zoomed in this close, never cluster — always fan everyone out as individuals.
-	const DECLUSTER_ZOOM = 12.5;
+	// Dot sizing. A dot is normally BASE_DOT_PX across (its full, zoomed-in size),
+	// but is capped so it never covers more than MAX_GROUND_DIAMETER_M of real
+	// ground — roughly a large metropolitan area. So when you zoom out far enough
+	// that 44px would span more than a city, the dots shrink instead of ballooning
+	// over whole regions; zoomed in they stay full-size, exactly as before. Floored
+	// at MIN_DOT_PX so they remain visible and clickable. DOT_GAP is the breathing
+	// room added to the dot size to space fanned-out neighbours.
+	const BASE_DOT_PX = 44;
+	const MIN_DOT_PX = 12;
+	const MAX_GROUND_DIAMETER_M = 50_000;
+	const DOT_GAP = 4;
+	// Metres per screen pixel at a given zoom/latitude (Web Mercator).
+	const metresPerPixel = (lat: number, zoom: number) =>
+		(40075016.686 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom + 8);
 
 	/** Build the dot element for a person: avatar + surname-coloured ring (task 2.11). */
 	function buildElement(p: MapPerson): HTMLButtonElement {
@@ -122,63 +128,39 @@
 		return button;
 	}
 
-	/** Build a count badge for a crowd too dense to fan out; clicking zooms in to split it. */
-	function buildClusterElement(cluster: ClusterInstruction): HTMLButtonElement {
-		const button = document.createElement('button');
-		button.type = 'button';
-		button.className = 'ha-cluster';
-		button.title = t('map.view.clusterTitle', { count: cluster.count });
-		button.setAttribute('aria-label', t('map.view.clusterLabel', { count: cluster.count }));
-
-		const span = document.createElement('span');
-		span.className = 'ha-cluster-count';
-		span.textContent = String(cluster.count);
-		button.appendChild(span);
-
-		button.addEventListener('click', (event) => {
-			event.stopPropagation();
-			if (!map) return;
-			map.easeTo({
-				center: [cluster.lng, cluster.lat],
-				zoom: Math.min(map.getZoom() + 2, 18),
-				duration: 500
-			});
-		});
-		return button;
-	}
-
-	/** Reconcile markers to the computed layout: scattered individual dots, with a
-	 *  count badge only where a crowd is too dense to fan out. */
+	/** Reconcile markers to the computed layout: every person an individual dot,
+	 *  sized so it never spans more than a metropolitan area on the ground. */
 	function render() {
 		if (!map || !maplibre) return;
+
+		// Size dots for the current zoom: full size until 44px would span more than a
+		// city, then shrink to honour the ground cap (floored so they stay usable).
+		const mpp = metresPerPixel(map.getCenter().lat, map.getZoom());
+		const dotPx = Math.max(MIN_DOT_PX, Math.min(BASE_DOT_PX, MAX_GROUND_DIAMETER_M / mpp));
+		const scale = dotPx / BASE_DOT_PX;
+		const minDist = dotPx + DOT_GAP;
 
 		const projected = positions.map((pos) => {
 			const p = map!.project([pos.lng, pos.lat]);
 			return { id: pos.person.id, lng: pos.lng, lat: pos.lat, x: p.x, y: p.y };
 		});
-		const instructions = layoutMarkers(projected, {
-			minDist: MIN_DIST,
-			maxSpread: MAX_SPREAD,
-			forceIndividual: map.getZoom() >= DECLUSTER_ZOOM
-		});
+		const instructions = layoutMarkers(projected, { minDist });
 		const personById = new Map(positions.map((pos) => [pos.person.id, pos.person]));
 
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local bookkeeping
 		const live = new Set<string>();
 		for (const ins of instructions) {
-			const key = ins.kind === 'dot' ? `p:${ins.id}` : ins.key;
+			const key = `p:${ins.id}`;
 			live.add(key);
 			let entry = markers.get(key);
 			if (!entry) {
-				const element =
-					ins.kind === 'dot' ? buildElement(personById.get(ins.id)!) : buildClusterElement(ins);
+				const element = buildElement(personById.get(ins.id)!);
 				const marker = new maplibre.Marker({ element, anchor: 'center' });
 				marker.setLngLat([ins.lng, ins.lat]).addTo(map);
 				entry = {
 					marker,
 					element,
-					kind: ins.kind,
-					memberIds: ins.kind === 'dot' ? [ins.id] : ins.memberIds,
+					id: ins.id,
 					curLng: ins.lng,
 					curLat: ins.lat,
 					targetLng: ins.lng,
@@ -194,14 +176,15 @@
 				entry.targetLat = ins.lat;
 				animateMarkerTo(entry, ins.lng, ins.lat);
 			}
-			entry.marker.setOffset(ins.kind === 'dot' ? [ins.offsetX, ins.offsetY] : [0, 0]);
-			// Grey out a lone dot once its person has died by this year (unborn people
+			entry.marker.setOffset([ins.offsetX, ins.offsetY]);
+			// Scale the dot to the zoom-capped size (transform is owned by MapLibre, so
+			// we drive size through a CSS custom property instead).
+			entry.element.style.setProperty('--s', scale.toFixed(3));
+			// Grey out a dot once its person has died by this year (unborn people
 			// simply aren't on the map yet).
-			if (ins.kind === 'dot') {
-				const person = personById.get(ins.id);
-				const dead = !!person && person.deathYear != null && year > person.deathYear;
-				entry.element.classList.toggle('ha-dot-dead', dead);
-			}
+			const person = personById.get(ins.id);
+			const dead = !!person && person.deathYear != null && year > person.deathYear;
+			entry.element.classList.toggle('ha-dot-dead', dead);
 		}
 
 		// Drop markers that no longer correspond to a rendered dot/badge.
@@ -227,15 +210,12 @@
 		});
 	}
 
-	/** Reflect the selected id onto the marker elements (lone dot, or the badge holding them). */
+	/** Reflect the selected id onto the marker elements. */
 	function applySelection() {
 		for (const entry of markers.values()) {
-			const isSolo = entry.kind === 'dot' && entry.memberIds[0] === selectedId;
-			const holdsSelected =
-				entry.kind === 'cluster' && selectedId != null && entry.memberIds.includes(selectedId);
-			entry.element.classList.toggle('ha-dot-selected', isSolo);
-			entry.element.classList.toggle('ha-cluster-has-selected', holdsSelected);
-			entry.element.style.zIndex = isSolo || holdsSelected ? '10' : '';
+			const isSelected = entry.id === selectedId;
+			entry.element.classList.toggle('ha-dot-selected', isSelected);
+			entry.element.style.zIndex = isSelected ? '10' : '';
 		}
 	}
 
@@ -481,25 +461,32 @@
 <style>
 	/* Marker elements live outside the component's scoped subtree (MapLibre moves
 	   them into its own container), so these are deliberately global. */
+	/* `--s` (0–1) is the zoom-driven scale set per frame in render(); the dot tracks
+	   it instantly so it never overgrows the ground cap. Transform is owned by
+	   MapLibre (positioning), so size rides on width/height, not scale(). */
 	:global(.ha-dot) {
+		--s: 1;
 		display: grid;
 		place-items: center;
-		width: 44px;
-		height: 44px;
+		width: calc(44px * var(--s));
+		height: calc(44px * var(--s));
 		padding: 0;
 		border-radius: 9999px;
-		border: 3px solid var(--ha-dot-border, #c3ceb6);
+		border-style: solid;
+		border-width: max(1.5px, calc(3px * var(--s)));
+		border-color: var(--ha-dot-border, #c3ceb6);
 		background: #fafbf9;
 		overflow: hidden;
 		cursor: pointer;
 		box-shadow: 0 1px 4px rgba(13, 15, 11, 0.35);
 		transition:
-			transform 0.12s ease,
 			box-shadow 0.12s ease,
 			filter 0.3s ease;
 	}
 	:global(.ha-dot:hover) {
-		transform: scale(1.08);
+		box-shadow:
+			0 0 0 2px rgba(233, 186, 156, 0.85),
+			0 2px 8px rgba(13, 15, 11, 0.45);
 	}
 	/* Died by the current year — drained of colour. */
 	:global(.ha-dot-dead) {
@@ -507,7 +494,6 @@
 		opacity: 0.9;
 	}
 	:global(.ha-dot-selected) {
-		transform: scale(1.18);
 		box-shadow:
 			0 0 0 3px #e9ba9c,
 			0 2px 8px rgba(13, 15, 11, 0.45);
@@ -518,38 +504,8 @@
 		object-fit: cover;
 	}
 	:global(.ha-dot-initials) {
-		font-size: 14px;
+		font-size: calc(14px * var(--s));
 		font-weight: 600;
 		color: rgba(13, 15, 11, 0.7);
-	}
-
-	/* Count badge: only shown for a crowd too dense to fan into individual dots. */
-	:global(.ha-cluster) {
-		display: grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		padding: 0;
-		border-radius: 9999px;
-		border: 3px solid #e9ba9c;
-		background: #f6f3db;
-		cursor: pointer;
-		box-shadow: 0 1px 4px rgba(13, 15, 11, 0.35);
-		transition:
-			transform 0.12s ease,
-			box-shadow 0.12s ease;
-	}
-	:global(.ha-cluster:hover) {
-		transform: scale(1.08);
-	}
-	:global(.ha-cluster-count) {
-		font-size: 15px;
-		font-weight: 700;
-		color: #0d0f0b;
-	}
-	:global(.ha-cluster-has-selected) {
-		box-shadow:
-			0 0 0 3px #e9ba9c,
-			0 2px 8px rgba(13, 15, 11, 0.45);
 	}
 </style>

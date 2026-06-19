@@ -1,19 +1,14 @@
 /**
  * Marker layout for the map dots.
  *
- * The goal: keep people as their own individual dots for as long as they fit,
- * and only fall back to a numbered cluster when there are so many crammed into
- * one spot that scattering them would fling dots wildly far from where they
- * actually were.
+ * Every person is always their own dot — we never collapse a crowd into a count
+ * badge. Dots that land on the same spot are fanned out (scattered in pixel
+ * space) just enough that none overlap. The caller sizes the dots so they never
+ * represent more than a city's worth of ground (see MapView), and passes the
+ * matching `minDist`, so the whole fan-out stays tight to the real location and
+ * shrinks as you zoom out.
  *
- * Per render we group dots that overlap on screen, then decide each group:
- *  - small enough to fan out within a sane footprint → individual dots, scattered
- *    in pixel space so none overlap;
- *  - too crowded → a single count badge at the group's centre.
- *
- * As you zoom in, groups split, footprints shrink, and badges resolve back into
- * individual dots; as you zoom out, the opposite. Everything here is pure and
- * deterministic for a given input, so it's stable frame-to-frame.
+ * Pure and deterministic for a given input, so it's stable frame-to-frame.
  */
 
 export type LayoutInput = {
@@ -26,7 +21,6 @@ export type LayoutInput = {
 };
 
 export type DotInstruction = {
-	kind: 'dot';
 	id: string;
 	lng: number;
 	lat: number;
@@ -34,17 +28,6 @@ export type DotInstruction = {
 	offsetX: number;
 	offsetY: number;
 };
-
-export type ClusterInstruction = {
-	kind: 'cluster';
-	key: string;
-	lng: number;
-	lat: number;
-	count: number;
-	memberIds: string[];
-};
-
-export type MarkerInstruction = DotInstruction | ClusterInstruction;
 
 const GOLDEN_ANGLE = 2.399963229728653;
 const MAX_ITERATIONS = 90;
@@ -130,58 +113,24 @@ function scatter(group: LayoutInput[], minDist: number): { x: number; y: number 
 	return out;
 }
 
-/** Rough radius a hex-packed group of `n` dots needs at the given spacing. */
-function packRadius(n: number, minDist: number): number {
-	return 0.5 * minDist * (1 + Math.sqrt(n));
-}
-
 /**
- * Lay out the dots: individuals (scattered to avoid overlap) wherever a crowd
- * fits within `maxSpread`, count badges only for crowds too dense to fan out.
+ * Lay out the dots: every person as an individual, scattered just enough that
+ * overlapping neighbours sit `minDist` apart.
  */
 export function layoutMarkers(
 	points: LayoutInput[],
-	{
-		minDist,
-		maxSpread,
-		forceIndividual = false
-	}: { minDist: number; maxSpread: number; forceIndividual?: boolean }
-): MarkerInstruction[] {
-	const out: MarkerInstruction[] = [];
+	{ minDist }: { minDist: number }
+): DotInstruction[] {
+	const out: DotInstruction[] = [];
 	for (const group of groupByProximity(points, minDist)) {
 		if (group.length === 1) {
 			const p = group[0];
-			out.push({ kind: 'dot', id: p.id, lng: p.lng, lat: p.lat, offsetX: 0, offsetY: 0 });
+			out.push({ id: p.id, lng: p.lng, lat: p.lat, offsetX: 0, offsetY: 0 });
 			continue;
 		}
-
-		// Too many to fan out without flinging dots far from the truth → one badge.
-		// `forceIndividual` (zoomed in close) overrides this: always show every person.
-		if (!forceIndividual && packRadius(group.length, minDist) > maxSpread) {
-			let sumLng = 0;
-			let sumLat = 0;
-			for (const p of group) {
-				sumLng += p.lng;
-				sumLat += p.lat;
-			}
-			out.push({
-				kind: 'cluster',
-				key: `c:${group
-					.map((p) => p.id)
-					.sort()
-					.join(',')}`,
-				lng: sumLng / group.length,
-				lat: sumLat / group.length,
-				count: group.length,
-				memberIds: group.map((p) => p.id)
-			});
-			continue;
-		}
-
 		const resolved = scatter(group, minDist);
 		group.forEach((p, i) => {
 			out.push({
-				kind: 'dot',
 				id: p.id,
 				lng: p.lng,
 				lat: p.lat,

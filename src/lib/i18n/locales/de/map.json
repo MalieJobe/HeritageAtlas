@@ -8,8 +8,6 @@
 	"map.timeline.done": "fertig",
 	"map.timeline.custom": "(angepasst)",
 	"map.timeline.adjustRange": "Zeitraum anpassen",
-	"map.view.clusterTitle": "{count} Personen hier — zum Vergrößern klicken",
-	"map.view.clusterLabel": "{count} Personen hier",
 	"map.view.fitEveryone": "Alle einpassen",
 	"map.view.fitEveryoneLabel": "Alle in der Ansicht einpassen",
 	"map.view.followLivingTitle": "Lebenden folgen — alle in diesem Jahr lebenden Personen in der Ansicht halten",
