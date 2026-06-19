@@ -282,7 +282,7 @@ demo**; logging in lands on a **dashboard hub**; brand-new users go through a gu
       `fail()`/`error()` messages translated to English + German (informal "du").
 - [x] **7.5 Enforcement tests** — `messages.test.ts` (en/de key parity, no blanks, ICU-arg parity)
       and `no-hardcoded-strings.test.ts` (scans every `.svelte` text + `placeholder/title/aria-label/
-  alt` and route server files; fails with a file:line list of any untranslated literal).
+alt` and route server files; fails with a file:line list of any untranslated literal).
 
 > Migration `0019_profile_locale.sql` (adds `profiles.locale`, default `'en'`) is **applied to the
 > live DB** (existing rows backfilled to `'en'`), so the chosen language syncs to the profile across
